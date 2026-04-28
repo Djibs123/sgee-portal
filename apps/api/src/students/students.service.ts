@@ -7,18 +7,18 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-type CreateStudentInput = {
-  studentNumber: string;
-  fullName: string;
-  birthDate: string;
-  scholarshipStatus: string;
-};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateStudentInput) {
+  async create(data: unknown) {
+    if (!isRecord(data)) {
+      throw new BadRequestException('Request body must be a valid object');
+    }
+
     const studentNumber = this.requiredString(
       data.studentNumber,
       'studentNumber',

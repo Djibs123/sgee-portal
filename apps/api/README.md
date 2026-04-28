@@ -1,98 +1,299 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# SGEE Portal API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend NestJS du portail SGEE.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Cette API sert de couche backend propre entre le futur frontend du portail, Prisma/PostgreSQL, et l'ancien systeme legacy ASP qui sera branche plus tard.
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- NestJS + TypeScript
+- Prisma 7
+- PostgreSQL local
+- pnpm
+- MiniForge / conda pour l'environnement local
 
-## Project setup
+Architecture actuelle:
 
-```bash
-$ pnpm install
+```text
+Frontend -> NestJS API -> Prisma -> PostgreSQL
+                    |
+                    -> LegacyService mock, futur adaptateur ASP/legacy
 ```
 
-## Compile and run the project
+## Demarrage
+
+Depuis `apps/api`:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm install
+pnpm start:dev
 ```
 
-## Run tests
+L'API ecoute sur le port `3000` par defaut, sauf si `PORT` est defini.
+
+Toutes les routes applicatives sont prefixees par `/api`.
+
+## Configuration
+
+Le fichier `.env` doit contenir:
+
+```env
+DATABASE_URL="postgresql://Djibil@localhost:5432/sgee_db"
+```
+
+Prisma 7 utilise `prisma.config.ts` pour la connexion a la base.
+
+Important: avec Prisma 7, `schema.prisma` ne doit pas contenir `url` dans le bloc `datasource`.
+
+## Modules
+
+### AppModule
+
+Point d'assemblage principal.
+
+Modules importes:
+
+- `AuthModule`
+- `StudentPortalModule`
+- `StudentsModule`
+
+### PrismaModule
+
+Expose `PrismaService`.
+
+`PrismaService`:
+
+- etend `PrismaClient`
+- utilise `@prisma/adapter-pg`
+- lit `DATABASE_URL`
+- connecte Prisma au demarrage du module
+- deconnecte Prisma a l'arret du module
+
+### AuthModule
+
+Module d'authentification temporaire.
+
+Il ne fait pas encore de vraie authentification.
+
+Responsabilites actuelles:
+
+- exposer `POST /api/auth/login`
+- exposer `POST /api/auth/logout`
+- exposer `GET /api/me`
+- fournir le contexte etudiant courant via `AuthService`
+
+`AuthService.getCurrentStudent()` cherche actuellement un etudiant avec Prisma:
+
+```ts
+this.prisma.student.findFirst()
+```
+
+Si aucun etudiant n'existe, un etudiant mock est retourne.
+
+### StudentPortalModule
+
+Module des ressources du portail etudiant.
+
+Endpoints:
+
+- `GET /api/student/rib`
+- `GET /api/student/cursus`
+- `GET /api/student/payments`
+- `GET /api/student/documents`
+
+`StudentPortalService` recupere l'etudiant courant via `AuthService`, puis delegue les donnees metier a `LegacyService`.
+
+### LegacyModule
+
+Frontiere preparee pour l'ancien systeme ASP/legacy.
+
+Pour l'instant, `LegacyService` retourne des donnees mockees pour:
+
+- RIB
+- cursus
+- paiements
+- documents
+
+Plus tard, c'est ici qu'il faudra remplacer les mocks par:
+
+- appels HTTP vers l'ancien ASP
+- ou acces a une base legacy
+- ou tout autre connecteur d'integration
+
+Les controllers du portail ne doivent pas appeler directement le legacy.
+
+### StudentsModule
+
+Module CRUD minimal existant pour `Student`.
+
+Endpoints:
+
+- `POST /api/students`
+- `GET /api/students`
+- `GET /api/students/:studentNumber`
+
+La route `GET /api/students/:studentNumber` est conservee uniquement comme route legacy/debug. Le flux portail etudiant ne doit pas utiliser de numero etudiant dans l'URL.
+
+## Endpoints
+
+### Auth
+
+#### `POST /api/auth/login`
+
+Login mock.
+
+Exemple:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+curl -i -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"student@example.com\",\"password\":\"demo\"}"
 ```
 
-## Deployment
+Reponse:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```json
+{
+  "success": true,
+  "student": {
+    "id": "mock-student-id",
+    "studentNumber": "STU-MOCK-001",
+    "fullName": "Etudiant SGEE",
+    "email": "student@example.com",
+    "scholarshipStatus": "PENDING"
+  }
+}
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Le controller pose aussi un cookie HttpOnly placeholder `sgee_mock_session`.
+
+#### `POST /api/auth/logout`
+
+Logout mock.
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+curl -i -X POST http://localhost:3000/api/auth/logout
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Reponse:
 
-## Resources
+```json
+{
+  "success": true
+}
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+#### `GET /api/me`
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Endpoint principal du profil etudiant connecte.
 
-## Support
+```bash
+curl -i http://localhost:3000/api/me
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Retourne l'etudiant courant centralise par `AuthService`.
 
-## Stay in touch
+### Portail etudiant
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+#### `GET /api/student/rib`
 
-## License
+```bash
+curl -i http://localhost:3000/api/student/rib
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+#### `GET /api/student/cursus`
+
+```bash
+curl -i http://localhost:3000/api/student/cursus
+```
+
+#### `GET /api/student/payments`
+
+```bash
+curl -i http://localhost:3000/api/student/payments
+```
+
+#### `GET /api/student/documents`
+
+```bash
+curl -i http://localhost:3000/api/student/documents
+```
+
+### Students legacy/debug
+
+#### `GET /api/students`
+
+```bash
+curl -i http://localhost:3000/api/students
+```
+
+#### `POST /api/students`
+
+```bash
+curl -i -X POST http://localhost:3000/api/students \
+  -H "Content-Type: application/json" \
+  -d "{\"studentNumber\":\"STU001\",\"fullName\":\"Test Student\",\"birthDate\":\"2000-01-01\",\"scholarshipStatus\":\"PENDING\"}"
+```
+
+#### `GET /api/students/:studentNumber`
+
+Route legacy/debug uniquement.
+
+```bash
+curl -i http://localhost:3000/api/students/STU001
+```
+
+## Prisma
+
+Schema actuel:
+
+```prisma
+model Student {
+  id                String   @id @default(uuid())
+  studentNumber     String   @unique
+  fullName          String
+  birthDate         DateTime
+  scholarshipStatus String
+  createdAt         DateTime @default(now())
+}
+```
+
+Commandes utiles:
+
+```bash
+pnpm prisma validate
+pnpm prisma format
+pnpm prisma migrate dev --name init_student
+pnpm prisma generate
+pnpm prisma studio
+```
+
+## Validation
+
+Depuis `apps/api`:
+
+```bash
+pnpm lint
+pnpm build
+pnpm test
+pnpm test:e2e
+pnpm prisma validate
+```
+
+## Regles de conception actuelles
+
+- Ne pas modifier `apps/web` depuis ce backend.
+- Ne pas exposer `studentNumber` dans les URLs du portail etudiant.
+- Utiliser `GET /api/me` comme source principale du profil.
+- Garder `AuthService` responsable du contexte etudiant courant.
+- Garder `StudentPortalService` comme orchestrateur.
+- Garder `LegacyService` comme frontiere vers l'ancien systeme.
+- Ne pas ajouter de JWT/session/auth reelle tant que ce n'est pas demande.
+- Ne pas ajouter de logique metier avancee dans cette phase MVP.
+
+## Prochaines etapes recommandees
+
+1. Remplacer progressivement les mocks de `LegacyService` par de vrais appels legacy.
+2. Ajouter une vraie strategie d'authentification lorsque le flux utilisateur sera defini.
+3. Introduire des DTOs et validation pipes quand les contrats d'entree seront stabilises.
+4. Ajouter des tests e2e pour les endpoints `/api/me` et `/api/student/*`.
