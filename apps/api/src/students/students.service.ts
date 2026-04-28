@@ -23,7 +23,9 @@ export class StudentsService {
       data.studentNumber,
       'studentNumber',
     );
-    const fullName = this.requiredString(data.fullName, 'fullName');
+    const firstName = this.requiredString(data.firstName, 'firstName');
+    const lastName = this.requiredString(data.lastName, 'lastName');
+    const email = this.requiredString(data.email, 'email');
     const scholarshipStatus = this.requiredString(
       data.scholarshipStatus,
       'scholarshipStatus',
@@ -39,7 +41,9 @@ export class StudentsService {
       return await this.prisma.student.create({
         data: {
           studentNumber,
-          fullName,
+          firstName,
+          lastName,
+          email,
           birthDate,
           scholarshipStatus,
         },

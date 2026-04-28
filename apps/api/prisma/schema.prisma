@@ -9,7 +9,9 @@ datasource db {
 model Student {
   id                String   @id @default(uuid())
   studentNumber     String   @unique
-  fullName          String
+  firstName         String
+  lastName          String
+  email             String   @unique
   birthDate         DateTime
   scholarshipStatus String
   createdAt         DateTime @default(now())

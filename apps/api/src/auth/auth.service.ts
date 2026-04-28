@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export type AuthenticatedStudent = {
   id: string;
   studentNumber: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   email: string;
   scholarshipStatus: string;
@@ -19,6 +21,8 @@ export class AuthService {
   private readonly fallbackStudent: AuthenticatedStudent = {
     id: 'mock-student-id',
     studentNumber: 'STU-MOCK-001',
+    firstName: 'Etudiant',
+    lastName: 'SGEE',
     fullName: 'Etudiant SGEE',
     email: 'student@example.com',
     scholarshipStatus: 'PENDING',
@@ -55,8 +59,10 @@ export class AuthService {
     return {
       id: student.id,
       studentNumber: student.studentNumber,
-      fullName: student.fullName,
-      email: this.fallbackStudent.email,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      fullName: `${student.firstName} ${student.lastName}`,
+      email: student.email,
       scholarshipStatus: student.scholarshipStatus,
     };
   }

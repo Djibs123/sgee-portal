@@ -158,6 +158,8 @@ Reponse:
   "student": {
     "id": "mock-student-id",
     "studentNumber": "STU-MOCK-001",
+    "firstName": "Etudiant",
+    "lastName": "SGEE",
     "fullName": "Etudiant SGEE",
     "email": "student@example.com",
     "scholarshipStatus": "PENDING"
@@ -232,7 +234,7 @@ curl -i http://localhost:3000/api/students
 ```bash
 curl -i -X POST http://localhost:3000/api/students \
   -H "Content-Type: application/json" \
-  -d "{\"studentNumber\":\"STU001\",\"fullName\":\"Test Student\",\"birthDate\":\"2000-01-01\",\"scholarshipStatus\":\"PENDING\"}"
+  -d "{\"studentNumber\":\"STU001\",\"firstName\":\"Test\",\"lastName\":\"Student\",\"email\":\"student@example.com\",\"birthDate\":\"2000-01-01\",\"scholarshipStatus\":\"PENDING\"}"
 ```
 
 #### `GET /api/students/:studentNumber`
@@ -251,7 +253,9 @@ Schema actuel:
 model Student {
   id                String   @id @default(uuid())
   studentNumber     String   @unique
-  fullName          String
+  firstName         String
+  lastName          String
+  email             String   @unique
   birthDate         DateTime
   scholarshipStatus String
   createdAt         DateTime @default(now())

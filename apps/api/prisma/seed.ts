@@ -20,7 +20,9 @@ async function main() {
     update: {},
     create: {
       studentNumber: 'STU001',
-      fullName: 'Test Student',
+      firstName: 'Test',
+      lastName: 'Student',
+      email: 'student@example.com',
       birthDate: new Date('2000-01-01'),
       scholarshipStatus: 'PENDING',
     },

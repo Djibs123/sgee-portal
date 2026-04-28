@@ -3,7 +3,9 @@ import { StudentsService } from './students.service';
 
 type CreateStudentBody = {
   studentNumber: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   birthDate: string;
   scholarshipStatus: string;
 };
