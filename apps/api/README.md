@@ -17,7 +17,7 @@ Architecture actuelle:
 ```text
 Frontend -> NestJS API -> Prisma -> PostgreSQL
                     |
-                    -> LegacyService mock, futur adaptateur ASP/legacy
+                    -> LegacyService placeholder, futur adaptateur ASP/legacy
 ```
 
 ## Demarrage
@@ -41,6 +41,7 @@ Le fichier `.env` doit contenir:
 DATABASE_URL="postgresql://Djibil@localhost:5432/sgee_db"
 JWT_SECRET="dev-sgee-portal-change-me"
 AUTH_COOKIE_NAME="sgee_session"
+FRONTEND_ORIGIN="http://localhost:5173"
 ```
 
 Prisma 7 utilise `prisma.config.ts` pour la connexion a la base.
@@ -57,7 +58,9 @@ Cookie:
 - `httpOnly: true`
 - `sameSite: lax`
 - `secure: false` en developpement local
+- `secure: true` en production
 - `path: /`
+- duree: 8 heures
 
 Identifiants de developpement crees par le seed:
 
@@ -67,6 +70,13 @@ Mot de passe: password123
 ```
 
 Le mot de passe est stocke en base sous forme de hash bcrypt dans `Student.passwordHash`.
+
+Important:
+
+- ne pas utiliser le `JWT_SECRET` de developpement en production
+- en production, `JWT_SECRET` doit etre defini et fort
+- lancer `pnpm prisma db seed` pour creer l'utilisateur local de test
+- `POST /api/auth/login` est limite a 5 tentatives par minute par IP
 
 ## Modules
 
@@ -94,24 +104,17 @@ Expose `PrismaService`.
 
 ### AuthModule
 
-Module d'authentification temporaire.
+Module d'authentification par JWT stocke dans un cookie HttpOnly.
 
-Il ne fait pas encore de vraie authentification.
-
-Responsabilites actuelles:
+Responsabilites:
 
 - exposer `POST /api/auth/login`
 - exposer `POST /api/auth/logout`
 - exposer `GET /api/me`
-- fournir le contexte etudiant courant via `AuthService`
-
-`AuthService.getCurrentStudent()` cherche actuellement un etudiant avec Prisma:
-
-```ts
-this.prisma.student.findFirst()
-```
-
-Si aucun etudiant n'existe, un etudiant mock est retourne.
+- verifier le mot de passe avec bcrypt
+- signer un JWT de session
+- proteger les routes portail via `JwtAuthGuard`
+- valider les entrees de login avec `LoginDto`
 
 ### StudentPortalModule
 
@@ -124,20 +127,15 @@ Endpoints:
 - `GET /api/student/payments`
 - `GET /api/student/documents`
 
-`StudentPortalService` recupere l'etudiant courant via `AuthService`, puis delegue les donnees metier a `LegacyService`.
+`StudentPortalService` lit les donnees de l'etudiant connecte depuis PostgreSQL via Prisma.
 
 ### LegacyModule
 
 Frontiere preparee pour l'ancien systeme ASP/legacy.
 
-Pour l'instant, `LegacyService` retourne des donnees mockees pour:
+Pour l'instant, `LegacyService` reste un placeholder et ne fournit plus les donnees du portail.
 
-- RIB
-- cursus
-- paiements
-- documents
-
-Plus tard, c'est ici qu'il faudra remplacer les mocks par:
+Plus tard, c'est ici qu'il faudra ajouter:
 
 - appels HTTP vers l'ancien ASP
 - ou acces a une base legacy
@@ -163,14 +161,14 @@ La route `GET /api/students/:studentNumber` est conservee uniquement comme route
 
 #### `POST /api/auth/login`
 
-Login mock.
+Login avec identifiant/email et mot de passe.
 
 Exemple:
 
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"student@example.com\",\"password\":\"demo\"}"
+  -d "{\"identifier\":\"test@sgee.local\",\"password\":\"password123\"}"
 ```
 
 Reponse:
@@ -179,22 +177,17 @@ Reponse:
 {
   "success": true,
   "student": {
-    "id": "mock-student-id",
-    "studentNumber": "STU-MOCK-001",
-    "firstName": "Etudiant",
-    "lastName": "SGEE",
-    "fullName": "Etudiant SGEE",
-    "email": "student@example.com",
-    "scholarshipStatus": "PENDING"
+    "studentNumber": "STU001",
+    "email": "test@sgee.local"
   }
 }
 ```
 
-Le controller pose aussi un cookie HttpOnly placeholder `sgee_mock_session`.
+Le controller pose aussi le cookie HttpOnly `sgee_session`.
 
 #### `POST /api/auth/logout`
 
-Logout mock.
+Logout de session.
 
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/logout
@@ -210,13 +203,13 @@ Reponse:
 
 #### `GET /api/me`
 
-Endpoint principal du profil etudiant connecte.
+Endpoint principal du profil etudiant connecte. Route protegee.
 
 ```bash
 curl -i http://localhost:3000/api/me
 ```
 
-Retourne l'etudiant courant centralise par `AuthService`.
+Retourne l'etudiant authentifie par le cookie JWT.
 
 ### Portail etudiant
 
@@ -226,11 +219,15 @@ Retourne l'etudiant courant centralise par `AuthService`.
 curl -i http://localhost:3000/api/student/rib
 ```
 
+Route protegee.
+
 #### `GET /api/student/cursus`
 
 ```bash
 curl -i http://localhost:3000/api/student/cursus
 ```
+
+Route protegee.
 
 #### `GET /api/student/payments`
 
@@ -238,11 +235,15 @@ curl -i http://localhost:3000/api/student/cursus
 curl -i http://localhost:3000/api/student/payments
 ```
 
+Route protegee.
+
 #### `GET /api/student/documents`
 
 ```bash
 curl -i http://localhost:3000/api/student/documents
 ```
+
+Route protegee.
 
 ### Students legacy/debug
 
@@ -282,6 +283,9 @@ model Student {
   birthDate         DateTime
   scholarshipStatus String
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+  passwordHash      String?
+  lastLoginAt       DateTime?
 }
 ```
 
@@ -312,15 +316,14 @@ pnpm prisma validate
 - Ne pas modifier `apps/web` depuis ce backend.
 - Ne pas exposer `studentNumber` dans les URLs du portail etudiant.
 - Utiliser `GET /api/me` comme source principale du profil.
-- Garder `AuthService` responsable du contexte etudiant courant.
+- Garder `AuthService` responsable du login et du profil authentifie.
 - Garder `StudentPortalService` comme orchestrateur.
 - Garder `LegacyService` comme frontiere vers l'ancien systeme.
-- Ne pas ajouter de JWT/session/auth reelle tant que ce n'est pas demande.
 - Ne pas ajouter de logique metier avancee dans cette phase MVP.
 
 ## Prochaines etapes recommandees
 
-1. Remplacer progressivement les mocks de `LegacyService` par de vrais appels legacy.
-2. Ajouter une vraie strategie d'authentification lorsque le flux utilisateur sera defini.
-3. Introduire des DTOs et validation pipes quand les contrats d'entree seront stabilises.
-4. Ajouter des tests e2e pour les endpoints `/api/me` et `/api/student/*`.
+1. Brancher progressivement `LegacyService` sur de vrais appels legacy si necessaire.
+2. Ajouter une politique de rotation/renouvellement de session si le besoin produit le demande.
+3. Introduire des DTOs supplementaires quand les contrats d'entree hors login seront stabilises.
+4. Ajouter plus de tests e2e metier pour les endpoints `/api/student/*`.

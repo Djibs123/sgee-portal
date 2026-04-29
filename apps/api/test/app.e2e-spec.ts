@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -19,6 +19,13 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     app.setGlobalPrefix('api');
     await app.init();
   });
@@ -30,10 +37,37 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 
+  it('validates and rejects invalid login requests', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({})
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        identifier: 'test@sgee.local',
+        password: 'bad-password',
+      })
+      .expect(401)
+      .expect((response) => {
+        const body: unknown = response.body;
+
+        expect(isRecord(body)).toBe(true);
+
+        if (!isRecord(body)) {
+          return;
+        }
+
+        expect(body.message).toBe('Identifiants invalides');
+      });
+  });
+
   it('protects student endpoints with a login session', async () => {
     const agent = request.agent(app.getHttpServer());
 
     await agent.get('/api/me').expect(401);
+    await agent.get('/api/student/profile').expect(401);
 
     await agent
       .post('/api/auth/login')
@@ -95,7 +129,13 @@ describe('AppController (e2e)', () => {
         expect(body.studentNumber).toBe('STU001');
       });
 
-    await agent.post('/api/auth/logout').expect(200).expect({ success: true });
+    await agent
+      .post('/api/auth/logout')
+      .expect(200)
+      .expect({ success: true })
+      .expect((response) => {
+        expect(response.headers['set-cookie']).toBeDefined();
+      });
 
     await agent.get('/api/me').expect(401);
   });

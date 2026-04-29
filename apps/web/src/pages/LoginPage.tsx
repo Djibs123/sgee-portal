@@ -21,9 +21,9 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
       onAuthenticated(result.student)
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
-        setError('Identifiant ou mot de passe incorrect.')
+        setError('Identifiants invalides')
       } else {
-        setError('Connexion temporairement indisponible.')
+        setError('Impossible de contacter le serveur')
       }
     } finally {
       setLoading(false)

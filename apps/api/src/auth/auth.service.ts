@@ -1,21 +1,11 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapStudentProfile } from '../student-portal/student-portal.mapper';
 import { JWT_EXPIRES_IN } from './auth.constants';
+import type { LoginDto } from './auth.dto';
 import type { AuthTokenPayload } from './auth.types';
-
-export type LoginInput = {
-  identifier?: string;
-  email?: string;
-  password?: string;
-};
 
 @Injectable()
 export class AuthService {
@@ -24,9 +14,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(input: LoginInput) {
-    const identifier = this.getIdentifier(input);
-    const password = this.getPassword(input);
+  async login(input: LoginDto) {
+    const identifier = input.identifier.trim();
     const student = await this.prisma.student.findFirst({
       where: {
         OR: [{ email: identifier }, { studentNumber: identifier }],
@@ -34,16 +23,16 @@ export class AuthService {
     });
 
     if (!student?.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
     const passwordMatches = await bcrypt.compare(
-      password,
+      input.password,
       student.passwordHash,
     );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
     const updatedStudent = await this.prisma.student.update({
@@ -83,27 +72,9 @@ export class AuthService {
     });
 
     if (!student) {
-      throw new NotFoundException('Student not found');
+      throw new UnauthorizedException('Session invalide ou expiree');
     }
 
     return mapStudentProfile(student);
-  }
-
-  private getIdentifier(input: LoginInput) {
-    const identifier = input.identifier ?? input.email;
-
-    if (typeof identifier !== 'string' || identifier.trim() === '') {
-      throw new BadRequestException('identifier is required');
-    }
-
-    return identifier.trim();
-  }
-
-  private getPassword(input: LoginInput) {
-    if (typeof input.password !== 'string' || input.password === '') {
-      throw new BadRequestException('password is required');
-    }
-
-    return input.password;
   }
 }

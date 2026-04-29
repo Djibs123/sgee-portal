@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AUTH_COOKIE_NAME, JWT_SECRET } from './auth.constants';
-import type { AuthenticatedRequest, AuthTokenPayload } from './auth.types';
+import { isAuthTokenPayload, type AuthenticatedRequest } from './auth.types';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -18,20 +18,29 @@ export class JwtAuthGuard implements CanActivate {
     const token = cookies?.[AUTH_COOKIE_NAME];
 
     if (typeof token !== 'string' || token.trim() === '') {
-      throw new UnauthorizedException('Authentication required');
+      throw new UnauthorizedException('Session invalide ou expiree');
     }
 
     try {
-      request.auth = await this.jwtService.verifyAsync<AuthTokenPayload>(
-        token,
-        {
-          secret: JWT_SECRET,
-        },
-      );
+      const payload = await this.jwtService.verifyAsync<
+        Record<string, unknown>
+      >(token, {
+        secret: JWT_SECRET,
+      });
+
+      if (!isAuthTokenPayload(payload)) {
+        throw new UnauthorizedException('Session invalide ou expiree');
+      }
+
+      request.auth = payload;
 
       return true;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired session');
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      throw new UnauthorizedException('Session invalide ou expiree');
     }
   }
 }

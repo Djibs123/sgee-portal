@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JWT_EXPIRES_IN, JWT_SECRET } from './auth.constants';
 import { AuthController } from './auth.controller';
@@ -15,6 +16,12 @@ import { JwtAuthGuard } from './jwt-auth.guard';
         expiresIn: JWT_EXPIRES_IN,
       },
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 5,
+      },
+    ]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthGuard],
