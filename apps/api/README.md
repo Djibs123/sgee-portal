@@ -42,6 +42,8 @@ DATABASE_URL="postgresql://Djibil@localhost:5432/sgee_db"
 JWT_SECRET="dev-sgee-portal-change-me"
 AUTH_COOKIE_NAME="sgee_session"
 FRONTEND_ORIGIN="http://localhost:5173"
+UPLOAD_DIR="uploads/student-documents"
+MAX_UPLOAD_SIZE_MB="5"
 ```
 
 Prisma 7 utilise `prisma.config.ts` pour la connexion a la base.
@@ -123,9 +125,11 @@ Module des ressources du portail etudiant.
 Endpoints:
 
 - `GET /api/student/rib`
+- `PATCH /api/student/rib`
 - `GET /api/student/cursus`
 - `GET /api/student/payments`
 - `GET /api/student/documents`
+- `POST /api/student/documents`
 
 `StudentPortalService` lit les donnees de l'etudiant connecte depuis PostgreSQL via Prisma.
 
@@ -221,6 +225,18 @@ curl -i http://localhost:3000/api/student/rib
 
 Route protegee.
 
+#### `PATCH /api/student/rib`
+
+Met a jour le RIB de l'etudiant connecte. Route protegee.
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/student/rib \
+  -H "Content-Type: application/json" \
+  -d "{\"banque\":\"Banque SGEE\",\"iban\":\"SN123456789012345678901234\",\"adresse\":\"Dakar\",\"telephone\":\"+221770000000\",\"email\":\"rib@sgee.local\"}"
+```
+
+Le backend normalise l'IBAN en retirant les espaces et en le passant en majuscules.
+
 #### `GET /api/student/cursus`
 
 ```bash
@@ -244,6 +260,25 @@ curl -i http://localhost:3000/api/student/documents
 ```
 
 Route protegee.
+
+#### `POST /api/student/documents`
+
+Upload d'un document pour l'etudiant connecte. Route protegee.
+
+```bash
+curl -i -X POST http://localhost:3000/api/student/documents \
+  -F "type=CERTIFICAT_SCOLARITE" \
+  -F "label=Certificat de scolarite" \
+  -F "file=@certificat.pdf"
+```
+
+Contraintes upload:
+
+- champ fichier: `file`
+- stockage local: `apps/api/uploads/student-documents`
+- taille max par defaut: 5 Mo
+- types MIME acceptes: `application/pdf`, `image/png`, `image/jpeg`
+- le dossier `uploads/` est ignore par Git et ne doit pas etre committe
 
 ### Students legacy/debug
 

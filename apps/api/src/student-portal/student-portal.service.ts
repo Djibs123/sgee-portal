@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
 import {
   mapCursusEntry,
   mapPayment,
@@ -7,6 +8,15 @@ import {
   mapStudentDocument,
   mapStudentProfile,
 } from './student-portal.mapper';
+import { UPLOAD_DIR } from './upload.config';
+
+const maskIban = (iban: string) => {
+  if (iban.length <= 8) {
+    return iban;
+  }
+
+  return `${iban.slice(0, 4)} ${'*'.repeat(Math.max(iban.length - 8, 0))} ${iban.slice(-4)}`;
+};
 
 @Injectable()
 export class StudentPortalService {
@@ -36,6 +46,58 @@ export class StudentPortalService {
     if (!rib) {
       throw new NotFoundException('Student RIB not found');
     }
+
+    return mapRib(rib);
+  }
+
+  async updateRib(studentId: string, data: UpdateRibDto) {
+    const student = await this.prisma.student.findUnique({
+      where: {
+        id: studentId,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    const existingRib = await this.prisma.rib.findUnique({
+      where: {
+        studentId,
+      },
+    });
+
+    const rib = await this.prisma.rib.upsert({
+      where: {
+        studentId,
+      },
+      update: {
+        bankName: data.banque,
+        iban: data.iban,
+        ibanMasked: maskIban(data.iban),
+        address: data.adresse ?? existingRib?.address ?? '',
+        phone: data.telephone ?? existingRib?.phone ?? '',
+        email: data.email ?? existingRib?.email ?? student.email,
+      },
+      create: {
+        studentId,
+        bankName: data.banque,
+        holderName: `${student.firstName} ${student.lastName}`,
+        iban: data.iban,
+        ibanMasked: maskIban(data.iban),
+        bic: '',
+        address: data.adresse ?? '',
+        phone: data.telephone ?? '',
+        email: data.email ?? student.email,
+        status: 'VALIDATED',
+      },
+    });
 
     return mapRib(rib);
   }
@@ -83,5 +145,31 @@ export class StudentPortalService {
     return {
       items: documents.map(mapStudentDocument),
     };
+  }
+
+  async uploadDocument(
+    studentId: string,
+    data: UploadDocumentDto,
+    file: Express.Multer.File,
+  ) {
+    const submittedAt = new Date();
+    const document = await this.prisma.studentDocument.create({
+      data: {
+        studentId,
+        name: data.label?.trim() || file.originalname,
+        type: data.type,
+        status: 'PROVIDED',
+        required: false,
+        submittedAt,
+        uploadedAt: submittedAt,
+        fileName: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        storagePath: `${UPLOAD_DIR}/${file.filename}`,
+      },
+    });
+
+    return mapStudentDocument(document);
   }
 }

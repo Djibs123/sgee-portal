@@ -116,11 +116,16 @@ export function mapPayment(payment: Payment) {
 
 export function mapStudentDocument(document: StudentDocument) {
   return {
+    id: document.id,
     studentId: document.studentId,
     nom: document.name,
     type: document.type,
     statut: document.status,
     obligatoire: document.required,
     dateDepot: document.submittedAt ? formatDate(document.submittedAt) : null,
+    fileName: document.fileName,
+    originalName: document.originalName,
+    mimeType: document.mimeType,
+    size: document.size,
   };
 }

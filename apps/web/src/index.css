@@ -232,6 +232,18 @@ a { text-decoration: none; color: inherit; }
 .info-field label { font-size: 11.5px; color: var(--text-3); font-weight: 600; display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
 .info-field p { font-size: 14px; font-weight: 500; color: var(--text); }
 .info-field p.mono { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.04em; }
+.info-field > span {
+  font-size: 11.5px; color: var(--text-3); font-weight: 600;
+  display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.info-field input,
+.info-field select {
+  width: 100%; min-height: 38px; border: 1.5px solid var(--border);
+  border-radius: 8px; background: #fff; color: var(--text);
+  font-size: 13.5px; padding: 8px 10px; outline: none;
+}
+.info-field input:focus,
+.info-field select:focus { border-color: var(--green-mid); box-shadow: 0 0 0 3px var(--green-light); }
 
 /* STATUS PILL */
 .status-pill {

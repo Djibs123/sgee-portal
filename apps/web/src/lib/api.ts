@@ -100,12 +100,17 @@ export type StudentPaymentsResponse = {
 }
 
 export type StudentDocument = {
+  id: string
   studentId: string
   nom: string
   type: string
   statut: string
   obligatoire: boolean
   dateDepot: string | null
+  fileName?: string | null
+  originalName?: string | null
+  mimeType?: string | null
+  size?: number | null
 }
 
 export type StudentDocumentsResponse = {
@@ -115,6 +120,14 @@ export type StudentDocumentsResponse = {
 export type LoginResponse = {
   success: boolean
   student: StudentProfile
+}
+
+export type UpdateStudentRibPayload = {
+  banque: string
+  iban: string
+  adresse?: string
+  telephone?: string
+  email?: string
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -181,6 +194,18 @@ export function getStudentRib(): Promise<StudentRib> {
   return requestJson<StudentRib>('/student/rib')
 }
 
+export function updateStudentRib(
+  payload: UpdateStudentRibPayload,
+): Promise<StudentRib> {
+  return requestJson<StudentRib>('/student/rib', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+}
+
 export function getStudentCursus(): Promise<StudentCursusResponse> {
   return requestJson<StudentCursusResponse>('/student/cursus')
 }
@@ -191,6 +216,15 @@ export function getStudentPayments(): Promise<StudentPaymentsResponse> {
 
 export function getStudentDocuments(): Promise<StudentDocumentsResponse> {
   return requestJson<StudentDocumentsResponse>('/student/documents')
+}
+
+export function uploadStudentDocument(
+  formData: FormData,
+): Promise<StudentDocument> {
+  return requestJson<StudentDocument>('/student/documents', {
+    method: 'POST',
+    body: formData,
+  })
 }
 
 export function logout(): Promise<{ success: boolean }> {

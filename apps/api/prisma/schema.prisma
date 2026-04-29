@@ -115,19 +115,26 @@ model CursusEntry {
 }
 
 model StudentDocument {
-  id          String    @id @default(uuid())
-  studentId   String
-  name        String
-  type        String
-  status      String
-  required    Boolean   @default(true)
-  submittedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  studentId    String
+  name         String
+  type         String
+  status       String
+  required     Boolean   @default(true)
+  submittedAt  DateTime?
+  fileName     String?
+  originalName String?
+  mimeType     String?
+  size         Int?
+  storagePath  String?
+  uploadedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([type])
   @@index([status])
+  @@index([uploadedAt])
 }
