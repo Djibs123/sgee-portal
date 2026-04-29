@@ -1,15 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-export type AuthenticatedStudent = {
-  id: string;
-  studentNumber: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  email: string;
-  scholarshipStatus: string;
-};
+import { mapStudentProfile } from '../student-portal/student-portal.mapper';
 
 export type LoginInput = {
   email?: string;
@@ -18,16 +9,6 @@ export type LoginInput = {
 
 @Injectable()
 export class AuthService {
-  private readonly fallbackStudent: AuthenticatedStudent = {
-    id: 'mock-student-id',
-    studentNumber: 'STU-MOCK-001',
-    firstName: 'Etudiant',
-    lastName: 'SGEE',
-    fullName: 'Etudiant SGEE',
-    email: 'student@example.com',
-    scholarshipStatus: 'PENDING',
-  };
-
   constructor(private readonly prisma: PrismaService) {}
 
   async login(input: LoginInput) {
@@ -45,25 +26,41 @@ export class AuthService {
     };
   }
 
-  async getCurrentStudent(): Promise<AuthenticatedStudent> {
+  async getCurrentStudentId(): Promise<string> {
+    const student = await this.findCurrentStudent();
+
+    return student.id;
+  }
+
+  async getCurrentStudent() {
+    const student = await this.findCurrentStudent();
+
+    return mapStudentProfile(student);
+  }
+
+  private async findCurrentStudent() {
     const student = await this.prisma.student.findFirst({
+      where: {
+        studentNumber: process.env.DEFAULT_STUDENT_CODE ?? 'STU001',
+      },
+    });
+
+    if (student) {
+      return student;
+    }
+
+    const fallbackStudent = await this.prisma.student.findFirst({
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    if (!student) {
-      return this.fallbackStudent;
+    if (!fallbackStudent) {
+      throw new NotFoundException(
+        'No student found. Run `pnpm prisma db seed` from apps/api.',
+      );
     }
 
-    return {
-      id: student.id,
-      studentNumber: student.studentNumber,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      fullName: `${student.firstName} ${student.lastName}`,
-      email: student.email,
-      scholarshipStatus: student.scholarshipStatus,
-    };
+    return fallbackStudent;
   }
 }

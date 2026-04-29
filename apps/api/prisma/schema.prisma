@@ -15,4 +15,116 @@ model Student {
   birthDate         DateTime
   scholarshipStatus String
   createdAt         DateTime @default(now())
+
+  matricule               String?
+  level                   String?
+  field                   String?
+  academy                 String?
+  country                 String?
+  academicYear            String?
+  scholarshipType         String?
+  paymentMethod           String?
+  birthCity               String?
+  birthCountry            String?
+  gender                  String?
+  familySituation         String?
+  budget                  String?
+  allocationMonthlyAmount Decimal?  @db.Decimal(10, 2)
+  allocationCurrency      String?
+  allocationCfaAmount     Int?
+  totalPaidAmount         Decimal?  @db.Decimal(10, 2)
+  progressPercent         Int?
+  startDate               DateTime?
+  endDate                 DateTime?
+  attributionNumber       String?
+  arrivalDate             DateTime?
+  lastProcessingDate      DateTime?
+
+  payments  Payment[]
+  rib       Rib?
+  cursus    CursusEntry[]
+  documents StudentDocument[]
+
+  @@index([matricule])
+  @@index([academicYear])
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  studentId    String
+  month        String
+  academicYear String
+  paymentDate  DateTime
+  amount       Decimal  @db.Decimal(10, 2)
+  currency     String
+  baseAmount   Decimal  @db.Decimal(10, 2)
+  status       String
+  reference    String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([academicYear])
+  @@index([paymentDate])
+}
+
+model Rib {
+  id         String   @id @default(uuid())
+  studentId  String   @unique
+  bankName   String
+  holderName String
+  iban       String
+  ibanMasked String
+  bic        String
+  address    String
+  phone      String
+  email      String
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model CursusEntry {
+  id           String   @id @default(uuid())
+  studentId    String
+  academicYear String
+  institution  String
+  level        String
+  specialty    String
+  diploma      String
+  status       String
+  isCurrent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([academicYear])
+  @@index([isCurrent])
+}
+
+model StudentDocument {
+  id          String    @id @default(uuid())
+  studentId   String
+  name        String
+  type        String
+  status      String
+  required    Boolean   @default(true)
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([type])
+  @@index([status])
 }

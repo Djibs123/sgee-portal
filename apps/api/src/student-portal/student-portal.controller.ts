@@ -5,6 +5,11 @@ import { StudentPortalService } from './student-portal.service';
 export class StudentPortalController {
   constructor(private readonly studentPortalService: StudentPortalService) {}
 
+  @Get('profile')
+  getProfile() {
+    return this.studentPortalService.getProfile();
+  }
+
   @Get('rib')
   getRib() {
     return this.studentPortalService.getRib();

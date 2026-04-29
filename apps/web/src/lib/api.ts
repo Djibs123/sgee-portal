@@ -26,23 +26,58 @@ export type StudentProfile = {
   fullName: string
   email: string
   scholarshipStatus: string
+  codeEtudiant: string
+  matricule: string
+  nom: string
+  prenom: string
+  niveau: string
+  filiere: string
+  academie: string
+  pays: string
+  anneeScolaire: string
+  statutBourse: string
+  typeBourse: string
+  modePaiement: string
+  dateNaissance: string
+  villeNaissance: string
+  paysNaissance: string
+  sexe: string
+  situation: string
+  budget: string
+  dateDebut: string
+  dateFin: string
+  dernierTraitement: string
+  dateArrivee: string
+  numAttribution: string
+  allocationMensuelle: string
+  allocationBase: string
+  totalVerse: string
+  progression: number
 }
 
 export type StudentRib = {
   studentId: string
+  banque: string
+  titulaire: string
+  iban: string
+  bic: string
+  adresse: string
+  telephone: string
+  email: string
   status: string
-  bankName: string
   ibanMasked: string
   updatedAt: string | null
 }
 
 export type StudentCursus = {
   studentId: string
-  academicYear: string
-  institution: string
-  level: string
-  field: string
-  status: string
+  annee: string
+  etablissement: string
+  niveau: string
+  specialite: string
+  diplome: string
+  statut: string
+  actuel: boolean
 }
 
 export type StudentCursusResponse = {
@@ -51,11 +86,13 @@ export type StudentCursusResponse = {
 
 export type StudentPayment = {
   studentId: string
-  reference: string
-  amount: number
-  currency: string
-  status: string
-  paidAt: string | null
+  mois: string
+  annee: string
+  date: string
+  montant: string
+  devise: string
+  base: string
+  statut: string
 }
 
 export type StudentPaymentsResponse = {
@@ -64,21 +101,24 @@ export type StudentPaymentsResponse = {
 
 export type StudentDocument = {
   studentId: string
+  nom: string
   type: string
-  label: string
-  status: string
-  uploadedAt: string | null
+  statut: string
+  obligatoire: boolean
+  dateDepot: string | null
 }
 
 export type StudentDocumentsResponse = {
   items: StudentDocument[]
 }
 
-async function requestJson<T>(path: string): Promise<T> {
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
     credentials: 'include',
     headers: {
       Accept: 'application/json',
+      ...init?.headers,
     },
   })
   const responseBody: unknown = await readResponseBody(response)
@@ -112,6 +152,10 @@ export function getMe(): Promise<StudentProfile> {
   return requestJson<StudentProfile>('/me')
 }
 
+export function getStudentProfile(): Promise<StudentProfile> {
+  return requestJson<StudentProfile>('/student/profile')
+}
+
 export function getStudentRib(): Promise<StudentRib> {
   return requestJson<StudentRib>('/student/rib')
 }
@@ -126,4 +170,10 @@ export function getStudentPayments(): Promise<StudentPaymentsResponse> {
 
 export function getStudentDocuments(): Promise<StudentDocumentsResponse> {
   return requestJson<StudentDocumentsResponse>('/student/documents')
+}
+
+export function logout(): Promise<{ success: boolean }> {
+  return requestJson<{ success: boolean }>('/auth/logout', {
+    method: 'POST',
+  })
 }

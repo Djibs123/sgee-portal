@@ -1,0 +1,4 @@
+pgdata/
+postgres-data/
+pglog.txt
+logfile
