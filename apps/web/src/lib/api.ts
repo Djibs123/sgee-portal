@@ -112,6 +112,11 @@ export type StudentDocumentsResponse = {
   items: StudentDocument[]
 }
 
+export type LoginResponse = {
+  success: boolean
+  student: StudentProfile
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -150,6 +155,22 @@ async function readResponseBody(response: Response): Promise<unknown> {
 
 export function getMe(): Promise<StudentProfile> {
   return requestJson<StudentProfile>('/me')
+}
+
+export function login(
+  identifier: string,
+  password: string,
+): Promise<LoginResponse> {
+  return requestJson<LoginResponse>('/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      identifier,
+      password,
+    }),
+  })
 }
 
 export function getStudentProfile(): Promise<StudentProfile> {

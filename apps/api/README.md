@@ -39,11 +39,34 @@ Le fichier `.env` doit contenir:
 
 ```env
 DATABASE_URL="postgresql://Djibil@localhost:5432/sgee_db"
+JWT_SECRET="dev-sgee-portal-change-me"
+AUTH_COOKIE_NAME="sgee_session"
 ```
 
 Prisma 7 utilise `prisma.config.ts` pour la connexion a la base.
 
 Important: avec Prisma 7, `schema.prisma` ne doit pas contenir `url` dans le bloc `datasource`.
+
+## Authentification locale
+
+L'API utilise un JWT signe dans un cookie HttpOnly.
+
+Cookie:
+
+- nom par defaut: `sgee_session`
+- `httpOnly: true`
+- `sameSite: lax`
+- `secure: false` en developpement local
+- `path: /`
+
+Identifiants de developpement crees par le seed:
+
+```text
+Identifiant: test@sgee.local ou STU001
+Mot de passe: password123
+```
+
+Le mot de passe est stocke en base sous forme de hash bcrypt dans `Student.passwordHash`.
 
 ## Modules
 

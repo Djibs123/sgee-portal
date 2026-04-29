@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -13,6 +14,9 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  const devPassword = 'password123';
+  const passwordHash = await bcrypt.hash(devPassword, 12);
+
   const student = await prisma.student.upsert({
     where: {
       studentNumber: 'STU001',
@@ -20,9 +24,10 @@ async function main() {
     update: {
       firstName: 'Test',
       lastName: 'Student',
-      email: 'student@example.com',
+      email: 'test@sgee.local',
       birthDate: new Date('2000-01-01'),
       scholarshipStatus: 'Repris',
+      passwordHash,
       matricule: '1933200401205',
       level: 'Licence 3',
       field: 'Mathematique Informatique',
@@ -51,9 +56,10 @@ async function main() {
       studentNumber: 'STU001',
       firstName: 'Test',
       lastName: 'Student',
-      email: 'student@example.com',
+      email: 'test@sgee.local',
       birthDate: new Date('2000-01-01'),
       scholarshipStatus: 'Repris',
+      passwordHash,
       matricule: '1933200401205',
       level: 'Licence 3',
       field: 'Mathematique Informatique',
@@ -273,6 +279,10 @@ async function main() {
       },
     ],
   });
+
+  console.log('Development student credentials:');
+  console.log('  identifier: test@sgee.local or STU001');
+  console.log(`  password: ${devPassword}`);
 }
 
 main()

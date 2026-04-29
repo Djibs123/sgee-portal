@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   mapCursusEntry,
@@ -11,13 +10,9 @@ import {
 
 @Injectable()
 export class StudentPortalService {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async getProfile() {
-    const studentId = await this.authService.getCurrentStudentId();
+  async getProfile(studentId: string) {
     const student = await this.prisma.student.findUnique({
       where: {
         id: studentId,
@@ -31,8 +26,7 @@ export class StudentPortalService {
     return mapStudentProfile(student);
   }
 
-  async getRib() {
-    const studentId = await this.authService.getCurrentStudentId();
+  async getRib(studentId: string) {
     const rib = await this.prisma.rib.findUnique({
       where: {
         studentId,
@@ -46,8 +40,7 @@ export class StudentPortalService {
     return mapRib(rib);
   }
 
-  async getCursus() {
-    const studentId = await this.authService.getCurrentStudentId();
+  async getCursus(studentId: string) {
     const entries = await this.prisma.cursusEntry.findMany({
       where: {
         studentId,
@@ -62,8 +55,7 @@ export class StudentPortalService {
     };
   }
 
-  async getPayments() {
-    const studentId = await this.authService.getCurrentStudentId();
+  async getPayments(studentId: string) {
     const payments = await this.prisma.payment.findMany({
       where: {
         studentId,
@@ -78,8 +70,7 @@ export class StudentPortalService {
     };
   }
 
-  async getDocuments() {
-    const studentId = await this.authService.getCurrentStudentId();
+  async getDocuments(studentId: string) {
     const documents = await this.prisma.studentDocument.findMany({
       where: {
         studentId,

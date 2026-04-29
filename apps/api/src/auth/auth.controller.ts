@@ -1,9 +1,19 @@
-import { Body, Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from './auth.constants';
+import { CurrentStudent } from './current-student.decorator';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import type { LoginInput } from './auth.service';
-
-const MOCK_SESSION_COOKIE = 'sgee_mock_session';
+import type { AuthTokenPayload } from './auth.types';
 
 @Controller()
 export class AuthController {
@@ -11,31 +21,34 @@ export class AuthController {
 
   @Post('auth/login')
   @HttpCode(200)
-  login(
+  async login(
     @Body() body: LoginInput,
     @Res({ passthrough: true }) response: Response,
   ) {
-    response.cookie(MOCK_SESSION_COOKIE, 'mock', {
-      httpOnly: true,
-      sameSite: 'lax',
-    });
+    const result = await this.authService.login(body);
 
-    return this.authService.login(body);
+    response.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+
+    return {
+      success: result.success,
+      student: result.student,
+    };
   }
 
   @Post('auth/logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie(MOCK_SESSION_COOKIE, {
-      httpOnly: true,
-      sameSite: 'lax',
+    response.clearCookie(AUTH_COOKIE_NAME, {
+      ...AUTH_COOKIE_OPTIONS,
+      maxAge: undefined,
     });
 
     return this.authService.logout();
   }
 
   @Get('me')
-  me() {
-    return this.authService.getCurrentStudent();
+  @UseGuards(JwtAuthGuard)
+  me(@CurrentStudent() student: AuthTokenPayload) {
+    return this.authService.getCurrentStudent(student.studentId);
   }
 }

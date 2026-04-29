@@ -1,4 +1,3 @@
-import { logout } from '../lib/api'
 import type { PageId } from '../types'
 
 const icons: Record<string, string> = {
@@ -41,6 +40,7 @@ function NavItem({ label, iconPath, active, badge, onClick }: NavItemProps) {
 type SidebarProps = {
   active: PageId
   onNav: (page: PageId) => void
+  onLogout: () => void
 }
 
 const nav: { id: PageId; label: string; icon: string; badge?: string }[] = [
@@ -52,13 +52,7 @@ const nav: { id: PageId; label: string; icon: string; badge?: string }[] = [
   { id: 'documents', label: 'Documents', icon: icons.documents, badge: '2' },
 ]
 
-export function Sidebar({ active, onNav }: SidebarProps) {
-  const handleLogout = () => {
-    logout().catch((error: unknown) => {
-      console.error(error)
-    })
-  }
-
+export function Sidebar({ active, onNav, onLogout }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-section-label">Menu principal</div>
@@ -73,7 +67,7 @@ export function Sidebar({ active, onNav }: SidebarProps) {
         />
       ))}
       <div className="sidebar-bottom">
-        <button className="logout-btn" onClick={handleLogout}>
+        <button className="logout-btn" onClick={onLogout}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

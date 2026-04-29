@@ -1,14 +1,12 @@
-import { getMe } from '../lib/api'
-import { useApiResource } from '../lib/useApiResource'
+import type { StudentProfile } from '../lib/api'
 
-export function Header() {
-  const { data: student } = useApiResource(getMe)
-  const initials = student
-    ? `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase()
-    : 'SG'
-  const displayName = student
-    ? `${student.firstName.toUpperCase()} ${student.lastName.charAt(0).toUpperCase()}.`
-    : 'Etudiant'
+type HeaderProps = {
+  student: StudentProfile
+}
+
+export function Header({ student }: HeaderProps) {
+  const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase()
+  const displayName = `${student.firstName.toUpperCase()} ${student.lastName.charAt(0).toUpperCase()}.`
 
   return (
     <header className="header">
