@@ -100,6 +100,8 @@ export function mapRib(rib: Rib) {
     status: rib.status,
     statusLabel: ribStatusLabels[rib.status],
     ibanMasked: rib.ibanMasked,
+    reviewedAt: rib.reviewedAt?.toISOString() ?? null,
+    reviewComment: rib.reviewComment,
     updatedAt: rib.updatedAt.toISOString(),
   };
 }
@@ -144,6 +146,8 @@ export function mapStudentDocument(document: StudentDocument) {
     originalName: document.originalName,
     mimeType: document.mimeType,
     size: document.size,
+    reviewedAt: document.reviewedAt?.toISOString() ?? null,
+    reviewComment: document.reviewComment,
     isDownloadable: Boolean(
       document.storagePath && document.originalName && document.mimeType,
     ),

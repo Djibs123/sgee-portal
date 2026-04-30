@@ -352,6 +352,11 @@ export function DocumentsPage({
               <span className={`status-pill ${statusClass}`} style={{ fontSize: '11px' }}>
                 {document.statusLabel}
               </span>
+              {document.status === 'REJECTED' && document.reviewComment && (
+                <p style={{ color: 'var(--red-sn)', fontSize: '12px', maxWidth: '220px' }}>
+                  Motif: {document.reviewComment}
+                </p>
+              )}
               {document.isDownloadable && (
                 <button
                   className="copy-btn"

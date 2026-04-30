@@ -121,6 +121,23 @@ async function main() {
     },
   });
 
+  await prisma.adminUser.upsert({
+    where: {
+      email: 'admin@sgee.local',
+    },
+    update: {
+      name: 'Admin SGEE',
+      passwordHash: await bcrypt.hash('admin12345', 12),
+      role: 'ADMIN',
+    },
+    create: {
+      email: 'admin@sgee.local',
+      name: 'Admin SGEE',
+      passwordHash: await bcrypt.hash('admin12345', 12),
+      role: 'ADMIN',
+    },
+  });
+
   await Promise.all(
     [
       {
@@ -290,6 +307,9 @@ async function main() {
   console.log('Development student credentials:');
   console.log('  identifier: test@sgee.local or STU001');
   console.log(`  password: ${devPassword}`);
+  console.log('Development admin credentials:');
+  console.log('  email: admin@sgee.local');
+  console.log('  password: admin12345');
 }
 
 main()

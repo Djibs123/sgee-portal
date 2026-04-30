@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -12,6 +13,25 @@ import { PrismaService } from './../src/prisma/prisma.service';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+async function ensureAdmin(prisma: PrismaService) {
+  return prisma.adminUser.upsert({
+    where: {
+      email: 'admin-e2e@sgee.local',
+    },
+    update: {
+      name: 'Admin E2E',
+      passwordHash: await bcrypt.hash('admin12345', 12),
+      role: 'ADMIN',
+    },
+    create: {
+      email: 'admin-e2e@sgee.local',
+      name: 'Admin E2E',
+      passwordHash: await bcrypt.hash('admin12345', 12),
+      role: 'ADMIN',
+    },
+  });
+}
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -891,6 +911,384 @@ describe('AppController (e2e)', () => {
       if (existsSync(filePath)) {
         rmSync(filePath);
       }
+    }
+  });
+
+  it('authenticates admin users with a separate session cookie', async () => {
+    await ensureAdmin(prisma);
+
+    await request(app.getHttpServer()).get('/api/admin/me').expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/admin/auth/login')
+      .send({
+        email: 'admin-e2e@sgee.local',
+        password: 'wrong-password',
+      })
+      .expect(401);
+
+    const agent = request.agent(app.getHttpServer());
+
+    await agent
+      .post('/api/admin/auth/login')
+      .send({
+        email: 'admin-e2e@sgee.local',
+        password: 'admin12345',
+      })
+      .expect(200)
+      .expect((response) => {
+        const body: unknown = response.body;
+
+        expect(isRecord(body)).toBe(true);
+
+        if (!isRecord(body)) {
+          return;
+        }
+
+        expect(body.success).toBe(true);
+        expect(isRecord(body.admin)).toBe(true);
+        expect(response.headers['set-cookie']).toBeDefined();
+        expect(JSON.stringify(body)).not.toContain('passwordHash');
+      });
+
+    await agent
+      .get('/api/admin/me')
+      .expect(200)
+      .expect((response) => {
+        const body: unknown = response.body;
+
+        expect(isRecord(body)).toBe(true);
+
+        if (!isRecord(body)) {
+          return;
+        }
+
+        expect(body.email).toBe('admin-e2e@sgee.local');
+        expect(body.passwordHash).toBeUndefined();
+      });
+
+    await agent.post('/api/admin/auth/logout').expect(200);
+  });
+
+  it('lets admins list, download, validate and reject pending documents', async () => {
+    await ensureAdmin(prisma);
+
+    const agent = request.agent(app.getHttpServer());
+    const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
+    const testSuffix = Date.now();
+    const fileNames = {
+      validate: `admin-validate-${testSuffix}.pdf`,
+      reject: `admin-reject-${testSuffix}.pdf`,
+    };
+    const createdDocumentIds: string[] = [];
+
+    mkdirSync(uploadDirectory, {
+      recursive: true,
+    });
+    writeFileSync(
+      join(uploadDirectory, fileNames.validate),
+      Buffer.from('%PDF-1.4\n%admin validate\n'),
+    );
+    writeFileSync(
+      join(uploadDirectory, fileNames.reject),
+      Buffer.from('%PDF-1.4\n%admin reject\n'),
+    );
+
+    const student = await prisma.student.findUniqueOrThrow({
+      where: {
+        studentNumber: 'STU001',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const pendingValidateDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Admin validate document',
+        type: `ADMIN_VALIDATE_${testSuffix}`,
+        status: 'PENDING',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: fileNames.validate,
+        originalName: 'admin validate.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileNames.validate}`,
+      },
+    });
+    createdDocumentIds.push(pendingValidateDocument.id);
+
+    const pendingRejectDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Admin reject document',
+        type: `ADMIN_REJECT_${testSuffix}`,
+        status: 'PENDING',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: fileNames.reject,
+        originalName: 'admin reject.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileNames.reject}`,
+      },
+    });
+    createdDocumentIds.push(pendingRejectDocument.id);
+
+    const validatedDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Admin already validated',
+        type: `ADMIN_ALREADY_VALIDATED_${testSuffix}`,
+        status: 'VALIDATED',
+        required: false,
+      },
+    });
+    createdDocumentIds.push(validatedDocument.id);
+
+    try {
+      await request(app.getHttpServer())
+        .get('/api/admin/documents/pending')
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .get(`/api/admin/documents/${pendingValidateDocument.id}/download`)
+        .expect(401);
+
+      await agent
+        .post('/api/admin/auth/login')
+        .send({
+          email: 'admin-e2e@sgee.local',
+          password: 'admin12345',
+        })
+        .expect(200);
+
+      await agent
+        .get('/api/admin/documents/pending')
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(Array.isArray(body.items)).toBe(true);
+          expect(JSON.stringify(body)).not.toContain('storagePath');
+        });
+
+      await agent
+        .get(`/api/admin/documents/${pendingValidateDocument.id}/download`)
+        .expect(200)
+        .expect('Content-Type', 'application/pdf');
+
+      await agent
+        .patch(`/api/admin/documents/${randomUUID()}/validate`)
+        .send({})
+        .expect(404);
+
+      await agent
+        .patch(`/api/admin/documents/${validatedDocument.id}/validate`)
+        .send({})
+        .expect(409);
+
+      await agent
+        .patch(`/api/admin/documents/${pendingRejectDocument.id}/reject`)
+        .send({})
+        .expect(400);
+
+      await agent
+        .patch(`/api/admin/documents/${pendingValidateDocument.id}/validate`)
+        .send({})
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.status).toBe('VALIDATED');
+          expect(body.reviewedAt).toBeDefined();
+        });
+
+      await agent
+        .patch(`/api/admin/documents/${pendingRejectDocument.id}/reject`)
+        .send({
+          reviewComment: 'Document illisible',
+        })
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.status).toBe('REJECTED');
+          expect(body.reviewComment).toBe('Document illisible');
+        });
+    } finally {
+      await prisma.studentDocument.deleteMany({
+        where: {
+          id: {
+            in: createdDocumentIds,
+          },
+        },
+      });
+
+      Object.values(fileNames).forEach((fileName) => {
+        const filePath = join(uploadDirectory, fileName);
+
+        if (existsSync(filePath)) {
+          rmSync(filePath);
+        }
+      });
+    }
+  });
+
+  it('lets admins list, validate and reject pending RIBs', async () => {
+    await ensureAdmin(prisma);
+
+    const agent = request.agent(app.getHttpServer());
+    const testSuffix = Date.now();
+    const createdStudentIds: string[] = [];
+
+    const createStudentWithRib = async (
+      suffix: string,
+      status: 'PENDING' | 'VALIDATED',
+    ) => {
+      const student = await prisma.student.create({
+        data: {
+          studentNumber: `ADMIN_RIB_${suffix}_${testSuffix}`,
+          firstName: 'Admin',
+          lastName: `Rib ${suffix}`,
+          email: `admin-rib-${suffix}-${testSuffix}@sgee.local`,
+          birthDate: new Date('2001-01-01'),
+          scholarshipStatus: 'Repris',
+        },
+      });
+      createdStudentIds.push(student.id);
+
+      return prisma.rib.create({
+        data: {
+          studentId: student.id,
+          bankName: `Banque ${suffix}`,
+          holderName: `${student.firstName} ${student.lastName}`,
+          iban: `SN12${testSuffix}${suffix}`.slice(0, 34),
+          ibanMasked: `SN12 **** ${suffix}`,
+          bic: 'BICADMIN',
+          address: 'Dakar',
+          phone: '+221 77 000 0000',
+          email: student.email,
+          status,
+          submittedAt: new Date(),
+        },
+      });
+    };
+
+    const pendingValidateRib = await createStudentWithRib(
+      'VALIDATE',
+      'PENDING',
+    );
+    const pendingRejectRib = await createStudentWithRib('REJECT', 'PENDING');
+    const validatedRib = await createStudentWithRib('VALIDATED', 'VALIDATED');
+
+    try {
+      await request(app.getHttpServer())
+        .get('/api/admin/ribs/pending')
+        .expect(401);
+
+      await agent
+        .post('/api/admin/auth/login')
+        .send({
+          email: 'admin-e2e@sgee.local',
+          password: 'admin12345',
+        })
+        .expect(200);
+
+      await agent
+        .get('/api/admin/ribs/pending')
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(Array.isArray(body.items)).toBe(true);
+        });
+
+      await agent
+        .patch(`/api/admin/ribs/${randomUUID()}/validate`)
+        .send({})
+        .expect(404);
+
+      await agent
+        .patch(`/api/admin/ribs/${validatedRib.id}/validate`)
+        .send({})
+        .expect(409);
+
+      await agent
+        .patch(`/api/admin/ribs/${pendingRejectRib.id}/reject`)
+        .send({})
+        .expect(400);
+
+      await agent
+        .patch(`/api/admin/ribs/${pendingValidateRib.id}/validate`)
+        .send({})
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.status).toBe('VALIDATED');
+        });
+
+      await agent
+        .patch(`/api/admin/ribs/${pendingRejectRib.id}/reject`)
+        .send({
+          reviewComment: 'IBAN incorrect',
+        })
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.status).toBe('REJECTED');
+          expect(body.reviewComment).toBe('IBAN incorrect');
+        });
+    } finally {
+      await prisma.student.deleteMany({
+        where: {
+          id: {
+            in: createdStudentIds,
+          },
+        },
+      });
     }
   });
 

@@ -1,4 +1,4 @@
-import type { StudentDocumentStatus, StudentRibStatus } from '../types'
+import type { AdminRole, StudentDocumentStatus, StudentRibStatus } from '../types'
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ??
@@ -69,6 +69,8 @@ export type StudentRib = {
   status: StudentRibStatus
   statusLabel: string
   ibanMasked: string
+  reviewedAt: string | null
+  reviewComment?: string | null
   updatedAt: string | null
 }
 
@@ -115,6 +117,8 @@ export type StudentDocument = {
   originalName?: string | null
   mimeType?: string | null
   size?: number | null
+  reviewedAt?: string | null
+  reviewComment?: string | null
   isDownloadable: boolean
 }
 
@@ -138,6 +142,71 @@ export type UpdateStudentRibPayload = {
 export type DownloadStudentDocumentResponse = {
   blob: Blob
   fileName: string
+}
+
+export type AdminProfile = {
+  id: string
+  email: string
+  name: string
+  role: AdminRole
+  lastLoginAt: string | null
+}
+
+export type AdminLoginResponse = {
+  success: boolean
+  admin: AdminProfile
+}
+
+export type AdminStudentMinimal = {
+  id: string
+  code: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export type AdminPendingDocument = {
+  id: string
+  nom: string
+  type: string
+  status: StudentDocumentStatus
+  statusLabel: string
+  originalName: string | null
+  mimeType: string | null
+  size: number | null
+  uploadedAt: string | null
+  submittedAt: string | null
+  submittedAtLabel: string
+  reviewedAt: string | null
+  reviewedAtLabel: string
+  reviewComment: string | null
+  isDownloadable: boolean
+  student: AdminStudentMinimal
+}
+
+export type AdminPendingDocumentsResponse = {
+  items: AdminPendingDocument[]
+}
+
+export type AdminPendingRib = {
+  id: string
+  bankName: string
+  holderName: string
+  iban: string
+  ibanMasked: string
+  bic: string
+  status: StudentRibStatus
+  statusLabel: string
+  submittedAt: string | null
+  submittedAtLabel: string
+  reviewedAt: string | null
+  reviewedAtLabel: string
+  reviewComment: string | null
+  student: AdminStudentMinimal
+}
+
+export type AdminPendingRibsResponse = {
+  items: AdminPendingRib[]
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -300,5 +369,122 @@ export async function downloadStudentDocument(
 export function logout(): Promise<{ success: boolean }> {
   return requestJson<{ success: boolean }>('/auth/logout', {
     method: 'POST',
+  })
+}
+
+export function getAdminMe(): Promise<AdminProfile> {
+  return requestJson<AdminProfile>('/admin/me')
+}
+
+export function adminLogin(
+  email: string,
+  password: string,
+): Promise<AdminLoginResponse> {
+  return requestJson<AdminLoginResponse>('/admin/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  })
+}
+
+export function adminLogout(): Promise<{ success: boolean }> {
+  return requestJson<{ success: boolean }>('/admin/auth/logout', {
+    method: 'POST',
+  })
+}
+
+export function getAdminPendingDocuments(): Promise<AdminPendingDocumentsResponse> {
+  return requestJson<AdminPendingDocumentsResponse>('/admin/documents/pending')
+}
+
+export function validateAdminDocument(
+  documentId: string,
+): Promise<AdminPendingDocument> {
+  return requestJson<AdminPendingDocument>(
+    `/admin/documents/${documentId}/validate`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    },
+  )
+}
+
+export function rejectAdminDocument(
+  documentId: string,
+  reviewComment: string,
+): Promise<AdminPendingDocument> {
+  return requestJson<AdminPendingDocument>(
+    `/admin/documents/${documentId}/reject`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reviewComment }),
+    },
+  )
+}
+
+export async function downloadAdminDocument(
+  documentId: string,
+): Promise<DownloadStudentDocumentResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/admin/documents/${documentId}/download`,
+    {
+      credentials: 'include',
+      headers: {
+        Accept: 'application/octet-stream',
+      },
+    },
+  )
+
+  if (!response.ok) {
+    throw new ApiError(
+      `API request failed with status ${response.status}`,
+      response.status,
+      await readResponseBody(response),
+    )
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: getFileNameFromDisposition(
+      response.headers.get('Content-Disposition'),
+    ),
+  }
+}
+
+export function getAdminPendingRibs(): Promise<AdminPendingRibsResponse> {
+  return requestJson<AdminPendingRibsResponse>('/admin/ribs/pending')
+}
+
+export function validateAdminRib(ribId: string): Promise<AdminPendingRib> {
+  return requestJson<AdminPendingRib>(`/admin/ribs/${ribId}/validate`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  })
+}
+
+export function rejectAdminRib(
+  ribId: string,
+  reviewComment: string,
+): Promise<AdminPendingRib> {
+  return requestJson<AdminPendingRib>(`/admin/ribs/${ribId}/reject`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reviewComment }),
   })
 }

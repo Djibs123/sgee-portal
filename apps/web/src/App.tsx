@@ -3,11 +3,15 @@ import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
 import {
   ApiError,
+  getAdminMe,
   getMe,
   getStudentDocuments,
   logout,
+  type AdminProfile,
   type StudentProfile,
 } from './lib/api'
+import { AdminDashboardPage } from './pages/AdminDashboardPage'
+import { AdminLoginPage } from './pages/AdminLoginPage'
 import { CursusPage } from './pages/CursusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
@@ -18,12 +22,17 @@ import { PublicHomePage } from './pages/PublicHomePage'
 import { RibPage } from './pages/RibPage'
 import type { PageId } from './types'
 
-type AppRoute = '/' | '/login' | '/portal'
+type AppRoute = '/' | '/login' | '/portal' | '/admin/login' | '/admin'
 
 function getCurrentRoute(): AppRoute {
   const path = window.location.pathname
 
-  if (path === '/login' || path === '/portal') {
+  if (
+    path === '/login' ||
+    path === '/portal' ||
+    path === '/admin/login' ||
+    path === '/admin'
+  ) {
     return path
   }
 
@@ -34,7 +43,9 @@ function App() {
   const [page, setPage] = useState<PageId>('dashboard')
   const [route, setRoute] = useState<AppRoute>(getCurrentRoute)
   const [student, setStudent] = useState<StudentProfile | null>(null)
+  const [admin, setAdmin] = useState<AdminProfile | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [checkingAdminSession, setCheckingAdminSession] = useState(true)
   const [requiredDocumentsCount, setRequiredDocumentsCount] = useState(0)
 
   useEffect(() => {
@@ -44,6 +55,39 @@ function App() {
 
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
+
+  useEffect(() => {
+    if (route !== '/admin' && route !== '/admin/login') {
+      return
+    }
+
+    let active = true
+
+    getAdminMe()
+      .then((profile) => {
+        if (active) {
+          setAdmin(profile)
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof ApiError && reason.status === 401)) {
+          console.error(reason)
+        }
+
+        if (active) {
+          setAdmin(null)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setCheckingAdminSession(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [route])
 
   useEffect(() => {
     if (!student) {
@@ -108,6 +152,16 @@ function App() {
     navigate('/portal')
   }
 
+  const handleAdminAuthenticated = (profile: AdminProfile) => {
+    setAdmin(profile)
+    navigate('/admin')
+  }
+
+  const handleAdminLogout = () => {
+    setAdmin(null)
+    navigate('/admin/login')
+  }
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -139,6 +193,40 @@ function App() {
 
   if (route === '/') {
     return <PublicHomePage onNavigate={(path) => navigate(getCurrentRouteForPath(path))} />
+  }
+
+  if (route === '/admin/login') {
+    if (checkingAdminSession) {
+      return (
+        <>
+          <div className="flag-strip"><span /><span /><span /></div>
+          <main className="login-shell">
+            <p style={{ color: 'var(--text-3)' }}>Verification de la session admin...</p>
+          </main>
+        </>
+      )
+    }
+
+    return <AdminLoginPage onAuthenticated={handleAdminAuthenticated} />
+  }
+
+  if (route === '/admin') {
+    if (checkingAdminSession) {
+      return (
+        <>
+          <div className="flag-strip"><span /><span /><span /></div>
+          <main className="login-shell">
+            <p style={{ color: 'var(--text-3)' }}>Verification de la session admin...</p>
+          </main>
+        </>
+      )
+    }
+
+    if (!admin) {
+      return <AdminLoginPage onAuthenticated={handleAdminAuthenticated} />
+    }
+
+    return <AdminDashboardPage admin={admin} onLogout={handleAdminLogout} />
   }
 
   if (checkingSession) {
@@ -180,7 +268,12 @@ function App() {
 }
 
 function getCurrentRouteForPath(path: string): AppRoute {
-  if (path === '/login' || path === '/portal') {
+  if (
+    path === '/login' ||
+    path === '/portal' ||
+    path === '/admin/login' ||
+    path === '/admin'
+  ) {
     return path
   }
 

@@ -19,6 +19,11 @@ enum StudentDocumentStatus {
   REJECTED
 }
 
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
+}
+
 model Student {
   id                String    @id @default(uuid())
   studentNumber     String    @unique
@@ -63,6 +68,19 @@ model Student {
 
   @@index([matricule])
   @@index([academicYear])
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         AdminRole @default(ADMIN)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([role])
 }
 
 model Payment {

@@ -192,6 +192,11 @@ export function RibPage() {
                 <p><span className={`status-pill ${getRibStatusClass(rib)}`}>{rib.statusLabel}</span></p>
               </div>
             </div>
+            {rib.status === 'REJECTED' && rib.reviewComment && (
+              <div className="alert warning" style={{ marginBottom: '14px' }}>
+                <span className="alert-title">Motif du refus: {rib.reviewComment}</span>
+              </div>
+            )}
             <div className="info-field">
               <label>Numero IBAN</label>
               <div className="iban-display">

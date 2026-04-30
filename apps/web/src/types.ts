@@ -7,3 +7,5 @@ export type StudentDocumentStatus =
   | 'REJECTED'
 
 export type StudentRibStatus = 'PENDING' | 'VALIDATED' | 'REJECTED'
+
+export type AdminRole = 'ADMIN' | 'SUPER_ADMIN'
