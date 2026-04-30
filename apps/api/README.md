@@ -130,6 +130,7 @@ Endpoints:
 - `GET /api/student/payments`
 - `GET /api/student/documents`
 - `POST /api/student/documents`
+- `GET /api/student/documents/:documentId/download`
 
 `StudentPortalService` lit les donnees de l'etudiant connecte depuis PostgreSQL via Prisma.
 
@@ -279,6 +280,14 @@ Contraintes upload:
 - taille max par defaut: 5 Mo
 - types MIME acceptes: `application/pdf`, `image/png`, `image/jpeg`
 - le dossier `uploads/` est ignore par Git et ne doit pas etre committe
+
+#### `GET /api/student/documents/:documentId/download`
+
+Telecharge un document appartenant a l'etudiant connecte. Route protegee.
+
+Le backend verifie la session, la propriete du document, l'existence du fichier
+sur disque et renvoie le fichier avec un `Content-Disposition` compatible UTF-8.
+Le chemin local de stockage n'est jamais expose dans la reponse API.
 
 ### Students legacy/debug
 

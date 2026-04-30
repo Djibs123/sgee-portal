@@ -107,10 +107,10 @@ export type StudentDocument = {
   statut: string
   obligatoire: boolean
   dateDepot: string | null
-  fileName?: string | null
   originalName?: string | null
   mimeType?: string | null
   size?: number | null
+  isDownloadable: boolean
 }
 
 export type StudentDocumentsResponse = {
@@ -128,6 +128,11 @@ export type UpdateStudentRibPayload = {
   adresse?: string
   telephone?: string
   email?: string
+}
+
+export type DownloadStudentDocumentResponse = {
+  blob: Blob
+  fileName: string
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -164,6 +169,26 @@ async function readResponseBody(response: Response): Promise<unknown> {
   } catch {
     return text
   }
+}
+
+function getFileNameFromDisposition(disposition: string | null) {
+  if (!disposition) {
+    return 'document'
+  }
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch {
+      return utf8Match[1]
+    }
+  }
+
+  const asciiMatch = disposition.match(/filename="([^"]+)"/i)
+
+  return asciiMatch?.[1] ?? 'document'
 }
 
 export function getMe(): Promise<StudentProfile> {
@@ -225,6 +250,35 @@ export function uploadStudentDocument(
     method: 'POST',
     body: formData,
   })
+}
+
+export async function downloadStudentDocument(
+  documentId: string,
+): Promise<DownloadStudentDocumentResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/student/documents/${documentId}/download`,
+    {
+      credentials: 'include',
+      headers: {
+        Accept: 'application/octet-stream',
+      },
+    },
+  )
+
+  if (!response.ok) {
+    throw new ApiError(
+      `API request failed with status ${response.status}`,
+      response.status,
+      await readResponseBody(response),
+    )
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: getFileNameFromDisposition(
+      response.headers.get('Content-Disposition'),
+    ),
+  }
 }
 
 export function logout(): Promise<{ success: boolean }> {

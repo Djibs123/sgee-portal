@@ -3,13 +3,16 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CurrentStudent } from '../auth/current-student.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthTokenPayload } from '../auth/auth.types';
@@ -20,6 +23,30 @@ import {
   studentDocumentFileFilter,
   studentDocumentStorage,
 } from './upload.config';
+
+function toAsciiFilename(filename: string) {
+  const normalized = filename
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/["\\]/g, '')
+    .trim();
+
+  return normalized || 'document';
+}
+
+function encodeRfc5987Value(value: string) {
+  return encodeURIComponent(value)
+    .replace(
+      /['()]/g,
+      (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+    )
+    .replace(/\*/g, '%2A');
+}
+
+function contentDispositionAttachment(filename: string) {
+  return `attachment; filename="${toAsciiFilename(filename)}"; filename*=UTF-8''${encodeRfc5987Value(filename)}`;
+}
 
 @Controller('student')
 @UseGuards(JwtAuthGuard)
@@ -57,6 +84,26 @@ export class StudentPortalController {
   @Get('documents')
   getDocuments(@CurrentStudent() student: AuthTokenPayload) {
     return this.studentPortalService.getDocuments(student.studentId);
+  }
+
+  @Get('documents/:documentId/download')
+  async downloadDocument(
+    @CurrentStudent() student: AuthTokenPayload,
+    @Param('documentId') documentId: string,
+    @Res() response: Response,
+  ) {
+    const document = await this.studentPortalService.downloadDocument(
+      student.studentId,
+      documentId,
+    );
+
+    response.setHeader('Content-Type', document.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      contentDispositionAttachment(document.originalName),
+    );
+
+    return response.sendFile(document.absolutePath);
   }
 
   @Post('documents')

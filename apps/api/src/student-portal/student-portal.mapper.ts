@@ -123,9 +123,11 @@ export function mapStudentDocument(document: StudentDocument) {
     statut: document.status,
     obligatoire: document.required,
     dateDepot: document.submittedAt ? formatDate(document.submittedAt) : null,
-    fileName: document.fileName,
     originalName: document.originalName,
     mimeType: document.mimeType,
     size: document.size,
+    isDownloadable: Boolean(
+      document.storagePath && document.originalName && document.mimeType,
+    ),
   };
 }

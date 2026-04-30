@@ -9,6 +9,7 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   });
   app.use(cookieParser());
   app.useGlobalPipes(

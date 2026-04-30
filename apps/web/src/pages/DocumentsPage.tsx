@@ -2,6 +2,7 @@ import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
 import {
+  downloadStudentDocument,
   getStudentDocuments,
   uploadStudentDocument,
   type StudentDocument,
@@ -34,6 +35,8 @@ export function DocumentsPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [uploadSuccess, setUploadSuccess] = useState('')
+  const [downloadError, setDownloadError] = useState('')
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -121,6 +124,28 @@ export function DocumentsPage() {
     }
   }
 
+  const downloadDocument = async (document: StudentDocument) => {
+    setDownloadError('')
+    setDownloadingId(document.id)
+
+    try {
+      const download = await downloadStudentDocument(document.id)
+      const url = URL.createObjectURL(download.blob)
+      const link = window.document.createElement('a')
+
+      link.href = url
+      link.download = download.fileName
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setDownloadError('Impossible de telecharger ce document')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -130,6 +155,11 @@ export function DocumentsPage() {
       </div>
 
       <InlineState loading={loading} error={error} />
+      {downloadError && (
+        <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginBottom: '12px' }}>
+          {downloadError}
+        </p>
+      )}
 
       <form className="card" onSubmit={uploadDocument} style={{ marginBottom: '14px' }}>
         <div className="info-section-title">Ajouter un document</div>
@@ -187,6 +217,16 @@ export function DocumentsPage() {
               <span className={`status-pill ${missing ? 'suspendu' : 'actif'}`} style={{ fontSize: '11px' }}>
                 {missing ? 'Requis' : 'Fourni'}
               </span>
+              {document.isDownloadable && (
+                <button
+                  className="copy-btn"
+                  type="button"
+                  onClick={() => void downloadDocument(document)}
+                  disabled={downloadingId === document.id}
+                >
+                  {downloadingId === document.id ? 'Telechargement...' : 'Telecharger'}
+                </button>
+              )}
             </div>
           )
         })}

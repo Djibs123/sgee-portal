@@ -8,13 +8,35 @@ import { DocumentsPage } from './pages/DocumentsPage'
 import { GeneralPage } from './pages/GeneralPage'
 import { LoginPage } from './pages/LoginPage'
 import { PaiementsPage } from './pages/PaiementsPage'
+import { PublicHomePage } from './pages/PublicHomePage'
 import { RibPage } from './pages/RibPage'
 import type { PageId } from './types'
 
+type AppRoute = '/' | '/login' | '/portal'
+
+function getCurrentRoute(): AppRoute {
+  const path = window.location.pathname
+
+  if (path === '/login' || path === '/portal') {
+    return path
+  }
+
+  return '/'
+}
+
 function App() {
   const [page, setPage] = useState<PageId>('dashboard')
+  const [route, setRoute] = useState<AppRoute>(getCurrentRoute)
   const [student, setStudent] = useState<StudentProfile | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+
+  useEffect(() => {
+    const syncRoute = () => setRoute(getCurrentRoute())
+
+    window.addEventListener('popstate', syncRoute)
+
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -45,6 +67,16 @@ function App() {
     }
   }, [])
 
+  const navigate = (path: AppRoute) => {
+    window.history.pushState({}, '', path)
+    setRoute(path)
+  }
+
+  const handleAuthenticated = (profile: StudentProfile) => {
+    setStudent(profile)
+    navigate('/portal')
+  }
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -53,6 +85,7 @@ function App() {
     } finally {
       setStudent(null)
       setPage('dashboard')
+      navigate('/')
     }
   }
 
@@ -67,6 +100,10 @@ function App() {
     }
   }
 
+  if (route === '/') {
+    return <PublicHomePage onNavigate={(path) => navigate(getCurrentRouteForPath(path))} />
+  }
+
   if (checkingSession) {
     return (
       <>
@@ -78,8 +115,12 @@ function App() {
     )
   }
 
+  if (route === '/login') {
+    return <LoginPage onAuthenticated={handleAuthenticated} />
+  }
+
   if (!student) {
-    return <LoginPage onAuthenticated={setStudent} />
+    return <LoginPage onAuthenticated={handleAuthenticated} />
   }
 
   return (
@@ -94,6 +135,14 @@ function App() {
       </div>
     </>
   )
+}
+
+function getCurrentRouteForPath(path: string): AppRoute {
+  if (path === '/login' || path === '/portal') {
+    return path
+  }
+
+  return '/'
 }
 
 export default App

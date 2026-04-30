@@ -1,3 +1,5 @@
+import { existsSync, realpathSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
@@ -8,7 +10,7 @@ import {
   mapStudentDocument,
   mapStudentProfile,
 } from './student-portal.mapper';
-import { UPLOAD_DIR } from './upload.config';
+import { UPLOAD_DIR, uploadRoot } from './upload.config';
 
 const maskIban = (iban: string) => {
   if (iban.length <= 8) {
@@ -17,6 +19,12 @@ const maskIban = (iban: string) => {
 
   return `${iban.slice(0, 4)} ${'*'.repeat(Math.max(iban.length - 8, 0))} ${iban.slice(-4)}`;
 };
+
+function isInsideDirectory(filePath: string, directoryPath: string) {
+  return (
+    filePath === directoryPath || filePath.startsWith(`${directoryPath}${sep}`)
+  );
+}
 
 @Injectable()
 export class StudentPortalService {
@@ -171,5 +179,48 @@ export class StudentPortalService {
     });
 
     return mapStudentDocument(document);
+  }
+
+  async downloadDocument(studentId: string, documentId: string) {
+    const document = await this.prisma.studentDocument.findUnique({
+      where: {
+        id: documentId,
+      },
+    });
+
+    if (
+      !document ||
+      document.studentId !== studentId ||
+      !document.storagePath ||
+      !document.originalName ||
+      !document.mimeType
+    ) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const rootPath = uploadRoot();
+
+    if (!existsSync(rootPath)) {
+      throw new NotFoundException('Document file not found');
+    }
+
+    const allowedRoot = realpathSync(rootPath);
+    const resolvedPath = resolve(process.cwd(), document.storagePath);
+
+    if (!existsSync(resolvedPath)) {
+      throw new NotFoundException('Document file not found');
+    }
+
+    const realFilePath = realpathSync(resolvedPath);
+
+    if (!isInsideDirectory(realFilePath, allowedRoot)) {
+      throw new NotFoundException('Document not found');
+    }
+
+    return {
+      absolutePath: realFilePath,
+      mimeType: document.mimeType,
+      originalName: document.originalName,
+    };
   }
 }

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
-import { existsSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -218,7 +219,6 @@ describe('AppController (e2e)', () => {
   it('uploads documents only with a valid session and accepted file type', async () => {
     const agent = request.agent(app.getHttpServer());
     const testType = `TEST_DOCUMENT_${Date.now()}`;
-    let uploadedFileName: string | null = null;
 
     await request(app.getHttpServer())
       .get('/api/student/documents')
@@ -276,10 +276,8 @@ describe('AppController (e2e)', () => {
         expect(body.type).toBe(testType);
         expect(body.nom).toBe('Document test');
         expect(body.statut).toBe('PROVIDED');
-
-        if (typeof body.fileName === 'string') {
-          uploadedFileName = body.fileName;
-        }
+        expect(body.fileName).toBeUndefined();
+        expect(body.isDownloadable).toBe(true);
       });
 
     await agent
@@ -308,22 +306,187 @@ describe('AppController (e2e)', () => {
         ).toBe(true);
       });
 
+    const uploadedDocument = await prisma.studentDocument.findFirst({
+      where: {
+        type: testType,
+      },
+      select: {
+        fileName: true,
+      },
+    });
+
     await prisma.studentDocument.deleteMany({
       where: {
         type: testType,
       },
     });
 
-    if (uploadedFileName) {
+    if (uploadedDocument?.fileName) {
       const uploadedPath = join(
         process.cwd(),
         'uploads',
         'student-documents',
-        uploadedFileName,
+        uploadedDocument.fileName,
       );
 
       if (existsSync(uploadedPath)) {
         rmSync(uploadedPath);
+      }
+    }
+  });
+
+  it('downloads only the current student document files securely', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
+    const testSuffix = Date.now();
+    const fileName = `download-${testSuffix}.pdf`;
+    const filePath = join(uploadDirectory, fileName);
+    const missingFileName = `missing-${testSuffix}.pdf`;
+    const createdDocumentIds: string[] = [];
+    let otherStudentId: string | null = null;
+
+    mkdirSync(uploadDirectory, {
+      recursive: true,
+    });
+    writeFileSync(filePath, Buffer.from('%PDF-1.4\n%download\n'));
+
+    const student = await prisma.student.findUniqueOrThrow({
+      where: {
+        studentNumber: 'STU001',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const downloadableDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Document telechargeable',
+        type: `DOWNLOAD_TEST_${testSuffix}`,
+        status: 'PROVIDED',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName,
+        originalName: 'releve accentué test.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileName}`,
+      },
+    });
+    createdDocumentIds.push(downloadableDocument.id);
+
+    const missingPhysicalFileDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Document absent disque',
+        type: `DOWNLOAD_MISSING_FILE_${testSuffix}`,
+        status: 'PROVIDED',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: missingFileName,
+        originalName: 'missing.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${missingFileName}`,
+      },
+    });
+    createdDocumentIds.push(missingPhysicalFileDocument.id);
+
+    const otherStudent = await prisma.student.create({
+      data: {
+        studentNumber: `OTHER_${testSuffix}`,
+        firstName: 'Other',
+        lastName: 'Student',
+        email: `other-${testSuffix}@sgee.local`,
+        birthDate: new Date('2001-01-01'),
+        scholarshipStatus: 'Repris',
+      },
+      select: {
+        id: true,
+      },
+    });
+    otherStudentId = otherStudent.id;
+
+    const otherStudentDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: otherStudent.id,
+        name: 'Document autre etudiant',
+        type: `DOWNLOAD_OTHER_${testSuffix}`,
+        status: 'PROVIDED',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName,
+        originalName: 'other.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileName}`,
+      },
+    });
+    createdDocumentIds.push(otherStudentDocument.id);
+
+    try {
+      await request(app.getHttpServer())
+        .get(`/api/student/documents/${downloadableDocument.id}/download`)
+        .expect(401);
+
+      await agent
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@sgee.local',
+          password: 'password123',
+        })
+        .expect(200);
+
+      await agent
+        .get(`/api/student/documents/${downloadableDocument.id}/download`)
+        .expect(200)
+        .expect('Content-Type', 'application/pdf')
+        .expect((response) => {
+          const disposition = response.headers['content-disposition'];
+
+          expect(disposition).toContain('attachment;');
+          expect(disposition).toContain('filename="releve accentue test.pdf"');
+          expect(disposition).toContain(
+            "filename*=UTF-8''releve%20accentu%C3%A9%20test.pdf",
+          );
+        });
+
+      await agent
+        .get(`/api/student/documents/${randomUUID()}/download`)
+        .expect(404);
+
+      await agent
+        .get(`/api/student/documents/${otherStudentDocument.id}/download`)
+        .expect(404);
+
+      await agent
+        .get(
+          `/api/student/documents/${missingPhysicalFileDocument.id}/download`,
+        )
+        .expect(404);
+    } finally {
+      await prisma.studentDocument.deleteMany({
+        where: {
+          id: {
+            in: createdDocumentIds,
+          },
+        },
+      });
+
+      if (otherStudentId) {
+        await prisma.student.delete({
+          where: {
+            id: otherStudentId,
+          },
+        });
+      }
+
+      if (existsSync(filePath)) {
+        rmSync(filePath);
       }
     }
   });
