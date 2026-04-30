@@ -1,7 +1,8 @@
-import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
 import {
+  cancelStudentDocumentSubmission,
   downloadStudentDocument,
   getStudentDocuments,
   uploadStudentDocument,
@@ -15,28 +16,87 @@ const ALLOWED_FILE_TYPES = new Set([
   'image/jpeg',
 ])
 
-const documentTypes = [
-  { value: 'CERTIFICAT_SCOLARITE', label: 'Certificat de scolarite' },
-  { value: 'PIECE_IDENTITE', label: "Piece d'identite" },
-  { value: 'RIB', label: 'RIB' },
-  { value: 'AUTRE', label: 'Autre' },
-]
-
-function isMissing(document: StudentDocument) {
-  return document.statut === 'MISSING'
+const OTHER_DOCUMENT_OPTION = {
+  value: 'free:AUTRE',
+  type: 'AUTRE',
+  label: 'Autre',
 }
 
-export function DocumentsPage() {
+function isMissing(document: StudentDocument) {
+  return document.status === 'REQUIRED'
+}
+
+function getDocumentStatusClass(document: StudentDocument) {
+  switch (document.status) {
+    case 'PENDING':
+      return 'pending'
+    case 'VALIDATED':
+      return 'validated'
+    case 'REJECTED':
+      return 'rejected'
+    case 'REQUIRED':
+      return 'required'
+  }
+}
+
+type UploadDocumentOption = {
+  value: string
+  type: string
+  label: string
+  documentId?: string
+}
+
+type DocumentsPageProps = {
+  onRequiredDocumentsCountChange?: (count: number) => void
+}
+
+type Feedback = {
+  type: 'success' | 'error'
+  message: string
+} | null
+
+function getRequiredDocumentsCount(documents: StudentDocument[]) {
+  return documents.filter((document) => document.status === 'REQUIRED').length
+}
+
+export function DocumentsPage({
+  onRequiredDocumentsCountChange,
+}: DocumentsPageProps) {
   const [documents, setDocuments] = useState<StudentDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [selectedType, setSelectedType] = useState(documentTypes[0].value)
+  const [selectedOption, setSelectedOption] = useState(OTHER_DOCUMENT_OPTION.value)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
-  const [uploadSuccess, setUploadSuccess] = useState('')
+  const [uploadFeedback, setUploadFeedback] = useState<Feedback>(null)
   const [downloadError, setDownloadError] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [cancelingId, setCancelingId] = useState<string | null>(null)
+  const uploadOptions = useMemo<UploadDocumentOption[]>(() => {
+    const options = documents
+      .filter((document) => document.status === 'REQUIRED')
+      .map((document) => ({
+        value: `document:${document.id}`,
+        type: document.type,
+        label: document.nom,
+        documentId: document.id,
+      }))
+
+    return [...options, OTHER_DOCUMENT_OPTION]
+  }, [documents])
+  const selectedDocumentOption =
+    uploadOptions.find((option) => option.value === selectedOption) ??
+    uploadOptions[0] ??
+    OTHER_DOCUMENT_OPTION
+
+  const applyDocuments = useCallback((items: StudentDocument[]) => {
+    setDocuments(items)
+    onRequiredDocumentsCountChange?.(getRequiredDocumentsCount(items))
+  }, [onRequiredDocumentsCountChange])
+
+  const clearUploadFeedback = () => {
+    setUploadFeedback(null)
+  }
 
   useEffect(() => {
     let ignore = false
@@ -48,7 +108,7 @@ export function DocumentsPage() {
         const response = await getStudentDocuments()
 
         if (!ignore) {
-          setDocuments(response.items)
+          applyDocuments(response.items)
         }
       } catch (requestError) {
         if (!ignore) {
@@ -70,55 +130,90 @@ export function DocumentsPage() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [applyDocuments])
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
 
-    setUploadError('')
-    setUploadSuccess('')
+    clearUploadFeedback()
     setSelectedFile(file)
   }
 
   const uploadDocument = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setUploadError('')
-    setUploadSuccess('')
+    const form = event.currentTarget
+
+    clearUploadFeedback()
 
     if (!selectedFile) {
-      setUploadError("Selectionnez un fichier a envoyer")
+      setUploadFeedback({
+        type: 'error',
+        message: "Selectionnez un fichier a envoyer",
+      })
       return
     }
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      setUploadError('Le fichier depasse la taille autorisee')
+      setUploadFeedback({
+        type: 'error',
+        message: 'Le fichier depasse la taille autorisee',
+      })
       return
     }
 
     if (!ALLOWED_FILE_TYPES.has(selectedFile.type)) {
-      setUploadError('Type de fichier non autorise')
+      setUploadFeedback({
+        type: 'error',
+        message: 'Type de fichier non autorise',
+      })
       return
     }
 
-    const documentLabel =
-      documentTypes.find((documentType) => documentType.value === selectedType)
-        ?.label ?? 'Document'
     const formData = new FormData()
 
-    formData.append('type', selectedType)
-    formData.append('label', documentLabel)
+    formData.append('type', selectedDocumentOption.type)
+    formData.append('label', selectedDocumentOption.label)
+
+    if (selectedDocumentOption.documentId) {
+      formData.append('documentId', selectedDocumentOption.documentId)
+    }
+
     formData.append('file', selectedFile)
 
-    try {
-      setUploading(true)
-      const createdDocument = await uploadStudentDocument(formData)
+    setUploading(true)
 
-      setDocuments((current) => [createdDocument, ...current])
-      setSelectedFile(null)
-      setUploadSuccess('Document ajoute')
-      event.currentTarget.reset()
+    try {
+      await uploadStudentDocument(formData)
     } catch {
-      setUploadError("Impossible d'ajouter le document")
+      setUploadFeedback({
+        type: 'error',
+        message: "Impossible d'ajouter le document",
+      })
+      setUploading(false)
+      return
+    }
+
+    setUploadFeedback({
+      type: 'success',
+      message: 'Document envoyé avec succès. En attente de validation.',
+    })
+
+    try {
+      const response = await getStudentDocuments()
+
+      applyDocuments(response.items)
+    } catch (refreshError) {
+      console.error(
+        'Document envoyé, mais rafraîchissement impossible',
+        refreshError,
+      )
+    }
+
+    try {
+      setSelectedFile(null)
+      form.reset()
+    } catch (resetError) {
+      console.error('Document envoyé, mais reset du formulaire impossible', resetError)
     } finally {
       setUploading(false)
     }
@@ -146,6 +241,36 @@ export function DocumentsPage() {
     }
   }
 
+  const cancelSubmission = async (document: StudentDocument) => {
+    const confirmed = window.confirm(
+      'Annuler ce depot ? Vous pourrez envoyer un nouveau fichier.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setCancelingId(document.id)
+    setUploadFeedback(null)
+
+    try {
+      const response = await cancelStudentDocumentSubmission(document.id)
+
+      applyDocuments(response.items)
+      setUploadFeedback({
+        type: 'success',
+        message: 'Depot annule',
+      })
+    } catch {
+      setUploadFeedback({
+        type: 'error',
+        message: "Impossible d'annuler le depot",
+      })
+    } finally {
+      setCancelingId(null)
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -166,10 +291,16 @@ export function DocumentsPage() {
         <div className="info-grid">
           <label className="info-field">
             <span>Type de document</span>
-            <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
-              {documentTypes.map((documentType) => (
-                <option key={documentType.value} value={documentType.value}>
-                  {documentType.label}
+            <select
+              value={selectedDocumentOption.value}
+              onChange={(event) => {
+                clearUploadFeedback()
+                setSelectedOption(event.target.value)
+              }}
+            >
+              {uploadOptions.map((documentOption) => (
+                <option key={documentOption.value} value={documentOption.value}>
+                  {documentOption.label}
                 </option>
               ))}
             </select>
@@ -180,8 +311,11 @@ export function DocumentsPage() {
           </label>
         </div>
 
-        {uploadError && <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginTop: '12px' }}>{uploadError}</p>}
-        {uploadSuccess && <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 700, marginTop: '12px' }}>{uploadSuccess}</p>}
+        {uploadFeedback?.type === 'error' ? (
+          <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginTop: '12px' }}>{uploadFeedback.message}</p>
+        ) : uploadFeedback?.type === 'success' ? (
+          <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 700, marginTop: '12px' }}>{uploadFeedback.message}</p>
+        ) : null}
 
         <div style={{ marginTop: '14px' }}>
           <button className="copy-btn" type="submit" disabled={uploading}>
@@ -193,6 +327,7 @@ export function DocumentsPage() {
       <div style={{ display: 'grid', gap: '10px' }}>
         {documents.map((document, i) => {
           const missing = isMissing(document)
+          const statusClass = getDocumentStatusClass(document)
 
           return (
             <div key={document.id ?? `${document.type}-${i}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px' }}>
@@ -211,11 +346,11 @@ export function DocumentsPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>{document.nom}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
-                  {document.dateDepot ? `Fourni le ${document.dateDepot}` : 'Document requis'}
+                  {document.dateDepot ? `Depose le ${document.dateDepot}` : 'Document requis'}
                 </div>
               </div>
-              <span className={`status-pill ${missing ? 'suspendu' : 'actif'}`} style={{ fontSize: '11px' }}>
-                {missing ? 'Requis' : 'Fourni'}
+              <span className={`status-pill ${statusClass}`} style={{ fontSize: '11px' }}>
+                {document.statusLabel}
               </span>
               {document.isDownloadable && (
                 <button
@@ -225,6 +360,16 @@ export function DocumentsPage() {
                   disabled={downloadingId === document.id}
                 >
                   {downloadingId === document.id ? 'Telechargement...' : 'Telecharger'}
+                </button>
+              )}
+              {document.status === 'PENDING' && (
+                <button
+                  className="copy-btn"
+                  type="button"
+                  onClick={() => void cancelSubmission(document)}
+                  disabled={cancelingId === document.id}
+                >
+                  {cancelingId === document.id ? 'Annulation...' : 'Annuler'}
                 </button>
               )}
             </div>

@@ -197,6 +197,8 @@ describe('AppController (e2e)', () => {
         expect(body.banque).toBe('Banque SGEE Test');
         expect(body.iban).toBe('SN123456789012345678901234');
         expect(body.telephone).toBe(phone);
+        expect(body.status).toBe('PENDING');
+        expect(body.statusLabel).toBe('En attente de validation');
       });
 
     await agent
@@ -213,12 +215,16 @@ describe('AppController (e2e)', () => {
 
         expect(body.banque).toBe('Banque SGEE Test');
         expect(body.telephone).toBe(phone);
+        expect(body.status).toBe('PENDING');
       });
   });
 
   it('uploads documents only with a valid session and accepted file type', async () => {
     const agent = request.agent(app.getHttpServer());
     const testType = `TEST_DOCUMENT_${Date.now()}`;
+    const requiredTestType = `TEST_REQUIRED_DOCUMENT_${Date.now()}`;
+    const untouchedRequiredTestType = `TEST_UNTOUCHED_REQUIRED_${Date.now()}`;
+    let requiredDocumentId: string | null = null;
 
     await request(app.getHttpServer())
       .get('/api/student/documents')
@@ -241,97 +247,494 @@ describe('AppController (e2e)', () => {
       })
       .expect(200);
 
-    await agent
-      .post('/api/student/documents')
-      .field('type', testType)
-      .expect(400);
+    try {
+      const student = await prisma.student.findUniqueOrThrow({
+        where: {
+          studentNumber: 'STU001',
+        },
+        select: {
+          id: true,
+        },
+      });
+      const requiredDocument = await prisma.studentDocument.create({
+        data: {
+          studentId: student.id,
+          name: 'Document requis test',
+          type: requiredTestType,
+          status: 'REQUIRED',
+          required: true,
+        },
+      });
+      requiredDocumentId = requiredDocument.id;
+      const untouchedRequiredDocument = await prisma.studentDocument.create({
+        data: {
+          studentId: student.id,
+          name: 'Document requis non depose test',
+          type: untouchedRequiredTestType,
+          status: 'REQUIRED',
+          required: true,
+        },
+      });
 
-    await agent
-      .post('/api/student/documents')
-      .field('type', testType)
-      .attach('file', Buffer.from('plain text'), {
-        filename: 'test.txt',
-        contentType: 'text/plain',
-      })
-      .expect(400);
+      await agent
+        .post('/api/student/documents')
+        .field('type', testType)
+        .expect(400);
 
-    await agent
-      .post('/api/student/documents')
-      .field('type', testType)
-      .field('label', 'Document test')
-      .attach('file', Buffer.from('%PDF-1.4\n%test\n'), {
-        filename: 'test.pdf',
-        contentType: 'application/pdf',
-      })
-      .expect(201)
-      .expect((response) => {
-        const body: unknown = response.body;
+      await agent
+        .post('/api/student/documents')
+        .field('type', testType)
+        .attach('file', Buffer.from('plain text'), {
+          filename: 'test.txt',
+          contentType: 'text/plain',
+        })
+        .expect(400);
 
-        expect(isRecord(body)).toBe(true);
+      await agent
+        .post('/api/student/documents')
+        .field('type', testType)
+        .field('label', 'Document test')
+        .attach('file', Buffer.from('%PDF-1.4\n%test\n'), {
+          filename: 'test.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+        .expect((response) => {
+          const body: unknown = response.body;
 
-        if (!isRecord(body)) {
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.type).toBe(testType);
+          expect(body.nom).toBe('Document test');
+          expect(body.status).toBe('PENDING');
+          expect(body.statut).toBe('PENDING');
+          expect(body.status).not.toBe('REQUIRED');
+          expect(body.statusLabel).toBe('En attente de validation');
+          expect(body.fileName).toBeUndefined();
+          expect(body.isDownloadable).toBe(true);
+        });
+
+      await agent
+        .post('/api/student/documents')
+        .field('documentId', requiredDocument.id)
+        .field('type', requiredTestType)
+        .field('label', 'Document requis test')
+        .attach('file', Buffer.from('%PDF-1.4\n%required\n'), {
+          filename: 'required.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          expect(body.id).toBe(requiredDocument.id);
+          expect(body.status).toBe('PENDING');
+          expect(body.status).not.toBe('REQUIRED');
+          expect(body.obligatoire).toBe(true);
+          expect(body.isDownloadable).toBe(true);
+        });
+
+      const requiredDocumentAfterUpload =
+        await prisma.studentDocument.findUniqueOrThrow({
+          where: {
+            id: requiredDocument.id,
+          },
+          select: {
+            required: true,
+          },
+        });
+
+      expect(requiredDocumentAfterUpload.required).toBe(true);
+
+      await agent
+        .get('/api/student/documents')
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          const items = body.items;
+
+          expect(Array.isArray(items)).toBe(true);
+          expect(
+            Array.isArray(items) &&
+              items.some(
+                (item) =>
+                  isRecord(item) &&
+                  item.type === testType &&
+                  item.nom === 'Document test' &&
+                  item.status === 'PENDING',
+              ),
+          ).toBe(true);
+          expect(
+            Array.isArray(items) &&
+              items.some(
+                (item) =>
+                  isRecord(item) &&
+                  item.id === requiredDocumentId &&
+                  item.status === 'PENDING',
+              ),
+          ).toBe(true);
+          expect(
+            Array.isArray(items) &&
+              items.some(
+                (item) =>
+                  isRecord(item) &&
+                  item.id === untouchedRequiredDocument.id &&
+                  item.status === 'REQUIRED' &&
+                  item.isDownloadable === false,
+              ),
+          ).toBe(true);
+        });
+
+      const uploadedDocument = await prisma.studentDocument.findFirst({
+        where: {
+          type: testType,
+        },
+        select: {
+          required: true,
+        },
+      });
+      expect(uploadedDocument?.required).toBe(false);
+    } finally {
+      const testDocuments = await prisma.studentDocument.findMany({
+        where: {
+          type: {
+            in: [testType, requiredTestType, untouchedRequiredTestType],
+          },
+        },
+        select: {
+          fileName: true,
+        },
+      });
+
+      await prisma.studentDocument.deleteMany({
+        where: {
+          type: {
+            in: [testType, requiredTestType, untouchedRequiredTestType],
+          },
+        },
+      });
+
+      testDocuments.forEach((document) => {
+        if (!document.fileName) {
           return;
         }
 
-        expect(body.type).toBe(testType);
-        expect(body.nom).toBe('Document test');
-        expect(body.statut).toBe('PROVIDED');
-        expect(body.fileName).toBeUndefined();
-        expect(body.isDownloadable).toBe(true);
-      });
+        const uploadedPath = join(
+          process.cwd(),
+          'uploads',
+          'student-documents',
+          document.fileName,
+        );
 
-    await agent
-      .get('/api/student/documents')
-      .expect(200)
-      .expect((response) => {
-        const body: unknown = response.body;
-
-        expect(isRecord(body)).toBe(true);
-
-        if (!isRecord(body)) {
-          return;
+        if (existsSync(uploadedPath)) {
+          rmSync(uploadedPath);
         }
-
-        const items = body.items;
-
-        expect(Array.isArray(items)).toBe(true);
-        expect(
-          Array.isArray(items) &&
-            items.some(
-              (item) =>
-                isRecord(item) &&
-                item.type === testType &&
-                item.nom === 'Document test',
-            ),
-        ).toBe(true);
       });
+    }
+  });
 
-    const uploadedDocument = await prisma.studentDocument.findFirst({
+  it('cancels only pending document submissions safely', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
+    const testSuffix = Date.now();
+    const fileNames = {
+      required: `cancel-required-${testSuffix}.pdf`,
+      free: `cancel-free-${testSuffix}.pdf`,
+      other: `cancel-other-${testSuffix}.pdf`,
+    };
+    const createdDocumentIds: string[] = [];
+    let otherStudentId: string | null = null;
+
+    mkdirSync(uploadDirectory, {
+      recursive: true,
+    });
+
+    writeFileSync(
+      join(uploadDirectory, fileNames.required),
+      Buffer.from('%PDF-1.4\n%required cancel\n'),
+    );
+    writeFileSync(
+      join(uploadDirectory, fileNames.free),
+      Buffer.from('%PDF-1.4\n%free cancel\n'),
+    );
+    writeFileSync(
+      join(uploadDirectory, fileNames.other),
+      Buffer.from('%PDF-1.4\n%other cancel\n'),
+    );
+
+    const student = await prisma.student.findUniqueOrThrow({
       where: {
-        type: testType,
+        studentNumber: 'STU001',
       },
       select: {
-        fileName: true,
+        id: true,
       },
     });
 
-    await prisma.studentDocument.deleteMany({
-      where: {
-        type: testType,
+    const requiredStatusDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Cancel required status',
+        type: `CANCEL_REQUIRED_STATUS_${testSuffix}`,
+        status: 'REQUIRED',
+        required: true,
       },
     });
+    createdDocumentIds.push(requiredStatusDocument.id);
 
-    if (uploadedDocument?.fileName) {
-      const uploadedPath = join(
-        process.cwd(),
-        'uploads',
-        'student-documents',
-        uploadedDocument.fileName,
-      );
+    const validatedDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Cancel validated',
+        type: `CANCEL_VALIDATED_${testSuffix}`,
+        status: 'VALIDATED',
+        required: true,
+      },
+    });
+    createdDocumentIds.push(validatedDocument.id);
 
-      if (existsSync(uploadedPath)) {
-        rmSync(uploadedPath);
+    const rejectedDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Cancel rejected',
+        type: `CANCEL_REJECTED_${testSuffix}`,
+        status: 'REJECTED',
+        required: true,
+      },
+    });
+    createdDocumentIds.push(rejectedDocument.id);
+
+    const pendingRequiredDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Cancel pending required',
+        type: `CANCEL_PENDING_REQUIRED_${testSuffix}`,
+        status: 'PENDING',
+        required: true,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: fileNames.required,
+        originalName: 'cancel-required.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileNames.required}`,
+      },
+    });
+    createdDocumentIds.push(pendingRequiredDocument.id);
+
+    const pendingRequiredMissingFileDocument =
+      await prisma.studentDocument.create({
+        data: {
+          studentId: student.id,
+          name: 'Cancel pending required missing file',
+          type: `CANCEL_PENDING_REQUIRED_MISSING_${testSuffix}`,
+          status: 'PENDING',
+          required: true,
+          submittedAt: new Date(),
+          uploadedAt: new Date(),
+          fileName: `cancel-missing-${testSuffix}.pdf`,
+          originalName: 'cancel-missing.pdf',
+          mimeType: 'application/pdf',
+          size: 20,
+          storagePath: `uploads/student-documents/cancel-missing-${testSuffix}.pdf`,
+        },
+      });
+    createdDocumentIds.push(pendingRequiredMissingFileDocument.id);
+
+    const pendingFreeDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: student.id,
+        name: 'Cancel pending free',
+        type: `CANCEL_PENDING_FREE_${testSuffix}`,
+        status: 'PENDING',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: fileNames.free,
+        originalName: 'cancel-free.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileNames.free}`,
+      },
+    });
+    createdDocumentIds.push(pendingFreeDocument.id);
+
+    const otherStudent = await prisma.student.create({
+      data: {
+        studentNumber: `CANCEL_OTHER_${testSuffix}`,
+        firstName: 'Other',
+        lastName: 'Cancel',
+        email: `cancel-other-${testSuffix}@sgee.local`,
+        birthDate: new Date('2001-01-01'),
+        scholarshipStatus: 'Repris',
+      },
+      select: {
+        id: true,
+      },
+    });
+    otherStudentId = otherStudent.id;
+
+    const otherStudentDocument = await prisma.studentDocument.create({
+      data: {
+        studentId: otherStudent.id,
+        name: 'Cancel other student',
+        type: `CANCEL_OTHER_STUDENT_${testSuffix}`,
+        status: 'PENDING',
+        required: false,
+        submittedAt: new Date(),
+        uploadedAt: new Date(),
+        fileName: fileNames.other,
+        originalName: 'cancel-other.pdf',
+        mimeType: 'application/pdf',
+        size: 20,
+        storagePath: `uploads/student-documents/${fileNames.other}`,
+      },
+    });
+    createdDocumentIds.push(otherStudentDocument.id);
+
+    try {
+      await request(app.getHttpServer())
+        .delete(
+          `/api/student/documents/${pendingRequiredDocument.id}/submission`,
+        )
+        .expect(401);
+
+      await agent
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@sgee.local',
+          password: 'password123',
+        })
+        .expect(200);
+
+      await agent
+        .delete(`/api/student/documents/${randomUUID()}/submission`)
+        .expect(404);
+
+      await agent
+        .delete(`/api/student/documents/${otherStudentDocument.id}/submission`)
+        .expect(404);
+
+      await agent
+        .delete(
+          `/api/student/documents/${requiredStatusDocument.id}/submission`,
+        )
+        .expect(409);
+
+      await agent
+        .delete(`/api/student/documents/${validatedDocument.id}/submission`)
+        .expect(409);
+
+      await agent
+        .delete(`/api/student/documents/${rejectedDocument.id}/submission`)
+        .expect(409);
+
+      await agent
+        .delete(
+          `/api/student/documents/${pendingRequiredDocument.id}/submission`,
+        )
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          const items = body.items;
+
+          expect(Array.isArray(items)).toBe(true);
+          expect(
+            Array.isArray(items) &&
+              items.some(
+                (item) =>
+                  isRecord(item) &&
+                  item.id === pendingRequiredDocument.id &&
+                  item.status === 'REQUIRED' &&
+                  item.isDownloadable === false,
+              ),
+          ).toBe(true);
+        });
+
+      await agent
+        .get(`/api/student/documents/${pendingRequiredDocument.id}/download`)
+        .expect(404);
+
+      await agent
+        .delete(
+          `/api/student/documents/${pendingRequiredMissingFileDocument.id}/submission`,
+        )
+        .expect(200);
+
+      await agent
+        .delete(`/api/student/documents/${pendingFreeDocument.id}/submission`)
+        .expect(200)
+        .expect((response) => {
+          const body: unknown = response.body;
+
+          expect(isRecord(body)).toBe(true);
+
+          if (!isRecord(body)) {
+            return;
+          }
+
+          const items = body.items;
+
+          expect(Array.isArray(items)).toBe(true);
+          expect(
+            Array.isArray(items) &&
+              items.some(
+                (item) => isRecord(item) && item.id === pendingFreeDocument.id,
+              ),
+          ).toBe(false);
+        });
+
+      await agent
+        .get(`/api/student/documents/${pendingFreeDocument.id}/download`)
+        .expect(404);
+    } finally {
+      await prisma.studentDocument.deleteMany({
+        where: {
+          id: {
+            in: createdDocumentIds,
+          },
+        },
+      });
+
+      if (otherStudentId) {
+        await prisma.student.delete({
+          where: {
+            id: otherStudentId,
+          },
+        });
       }
+
+      Object.values(fileNames).forEach((fileName) => {
+        const filePath = join(uploadDirectory, fileName);
+
+        if (existsSync(filePath)) {
+          rmSync(filePath);
+        }
+      });
     }
   });
 
@@ -364,7 +767,7 @@ describe('AppController (e2e)', () => {
         studentId: student.id,
         name: 'Document telechargeable',
         type: `DOWNLOAD_TEST_${testSuffix}`,
-        status: 'PROVIDED',
+        status: 'PENDING',
         required: false,
         submittedAt: new Date(),
         uploadedAt: new Date(),
@@ -382,7 +785,7 @@ describe('AppController (e2e)', () => {
         studentId: student.id,
         name: 'Document absent disque',
         type: `DOWNLOAD_MISSING_FILE_${testSuffix}`,
-        status: 'PROVIDED',
+        status: 'PENDING',
         required: false,
         submittedAt: new Date(),
         uploadedAt: new Date(),
@@ -415,7 +818,7 @@ describe('AppController (e2e)', () => {
         studentId: otherStudent.id,
         name: 'Document autre etudiant',
         type: `DOWNLOAD_OTHER_${testSuffix}`,
-        status: 'PROVIDED',
+        status: 'PENDING',
         required: false,
         submittedAt: new Date(),
         uploadedAt: new Date(),

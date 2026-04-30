@@ -2,8 +2,10 @@ import type {
   CursusEntry,
   Payment,
   Rib,
+  RibStatus,
   Student,
   StudentDocument,
+  StudentDocumentStatus,
 } from '@prisma/client';
 
 const formatDate = (date: Date | null | undefined) =>
@@ -22,6 +24,19 @@ const formatDecimalAmount = (
 
 const formatCfaAmount = (value: number | null | undefined) =>
   value ? value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '';
+
+const documentStatusLabels: Record<StudentDocumentStatus, string> = {
+  REQUIRED: 'Requis',
+  PENDING: 'En attente de validation',
+  VALIDATED: 'Valide',
+  REJECTED: 'Refuse',
+};
+
+const ribStatusLabels: Record<RibStatus, string> = {
+  PENDING: 'En attente de validation',
+  VALIDATED: 'Valide',
+  REJECTED: 'Refuse',
+};
 
 export function mapStudentProfile(student: Student) {
   const fullName = `${student.firstName} ${student.lastName}`;
@@ -83,6 +98,7 @@ export function mapRib(rib: Rib) {
     telephone: rib.phone,
     email: rib.email,
     status: rib.status,
+    statusLabel: ribStatusLabels[rib.status],
     ibanMasked: rib.ibanMasked,
     updatedAt: rib.updatedAt.toISOString(),
   };
@@ -120,6 +136,8 @@ export function mapStudentDocument(document: StudentDocument) {
     studentId: document.studentId,
     nom: document.name,
     type: document.type,
+    status: document.status,
+    statusLabel: documentStatusLabels[document.status],
     statut: document.status,
     obligatoire: document.required,
     dateDepot: document.submittedAt ? formatDate(document.submittedAt) : null,

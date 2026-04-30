@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -104,6 +105,17 @@ export class StudentPortalController {
     );
 
     return response.sendFile(document.absolutePath);
+  }
+
+  @Delete('documents/:documentId/submission')
+  cancelDocumentSubmission(
+    @CurrentStudent() student: AuthTokenPayload,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.studentPortalService.cancelDocumentSubmission(
+      student.studentId,
+      documentId,
+    );
   }
 
   @Post('documents')

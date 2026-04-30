@@ -26,6 +26,17 @@ function toForm(rib: StudentRib): UpdateStudentRibPayload {
   }
 }
 
+function getRibStatusClass(rib: StudentRib) {
+  switch (rib.status) {
+    case 'PENDING':
+      return 'pending'
+    case 'VALIDATED':
+      return 'validated'
+    case 'REJECTED':
+      return 'rejected'
+  }
+}
+
 export function RibPage() {
   const [rib, setRib] = useState<StudentRib | null>(null)
   const [loading, setLoading] = useState(true)
@@ -122,7 +133,7 @@ export function RibPage() {
       setRib(updatedRib)
       setForm(toForm(updatedRib))
       setEditing(false)
-      setSaveSuccess('RIB mis a jour')
+      setSaveSuccess('Votre RIB a ete soumis et est en attente de validation.')
     } catch {
       setSaveError('Impossible de mettre a jour le RIB')
     } finally {
@@ -178,7 +189,7 @@ export function RibPage() {
               </div>
               <div className="info-field">
                 <label>Statut</label>
-                <p><span className="status-pill actif">{rib.status}</span></p>
+                <p><span className={`status-pill ${getRibStatusClass(rib)}`}>{rib.statusLabel}</span></p>
               </div>
             </div>
             <div className="info-field">

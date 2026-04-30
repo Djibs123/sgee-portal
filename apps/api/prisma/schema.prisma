@@ -6,6 +6,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RibStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+}
+
+enum StudentDocumentStatus {
+  REQUIRED
+  PENDING
+  VALIDATED
+  REJECTED
+}
+
 model Student {
   id                String    @id @default(uuid())
   studentNumber     String    @unique
@@ -74,19 +87,22 @@ model Payment {
 }
 
 model Rib {
-  id         String   @id @default(uuid())
-  studentId  String   @unique
-  bankName   String
-  holderName String
-  iban       String
-  ibanMasked String
-  bic        String
-  address    String
-  phone      String
-  email      String
-  status     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String    @id @default(uuid())
+  studentId     String    @unique
+  bankName      String
+  holderName    String
+  iban          String
+  ibanMasked    String
+  bic           String
+  address       String
+  phone         String
+  email         String
+  status        RibStatus @default(PENDING)
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewComment String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -115,21 +131,23 @@ model CursusEntry {
 }
 
 model StudentDocument {
-  id           String    @id @default(uuid())
-  studentId    String
-  name         String
-  type         String
-  status       String
-  required     Boolean   @default(true)
-  submittedAt  DateTime?
-  fileName     String?
-  originalName String?
-  mimeType     String?
-  size         Int?
-  storagePath  String?
-  uploadedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String                @id @default(uuid())
+  studentId     String
+  name          String
+  type          String
+  status        StudentDocumentStatus @default(REQUIRED)
+  required      Boolean               @default(true)
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewComment String?
+  fileName      String?
+  originalName  String?
+  mimeType      String?
+  size          Int?
+  storagePath   String?
+  uploadedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 

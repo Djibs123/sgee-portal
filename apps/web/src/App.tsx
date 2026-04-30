@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
-import { ApiError, getMe, logout, type StudentProfile } from './lib/api'
+import {
+  ApiError,
+  getMe,
+  getStudentDocuments,
+  logout,
+  type StudentProfile,
+} from './lib/api'
 import { CursusPage } from './pages/CursusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
@@ -29,6 +35,7 @@ function App() {
   const [route, setRoute] = useState<AppRoute>(getCurrentRoute)
   const [student, setStudent] = useState<StudentProfile | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [requiredDocumentsCount, setRequiredDocumentsCount] = useState(0)
 
   useEffect(() => {
     const syncRoute = () => setRoute(getCurrentRoute())
@@ -37,6 +44,30 @@ function App() {
 
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
+
+  useEffect(() => {
+    if (!student) {
+      return
+    }
+
+    let active = true
+
+    getStudentDocuments()
+      .then((response) => {
+        if (active) {
+          setRequiredDocumentsCount(
+            response.items.filter((document) => document.status === 'REQUIRED').length,
+          )
+        }
+      })
+      .catch((reason: unknown) => {
+        console.error(reason)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [student])
 
   useEffect(() => {
     let active = true
@@ -85,6 +116,7 @@ function App() {
     } finally {
       setStudent(null)
       setPage('dashboard')
+      setRequiredDocumentsCount(0)
       navigate('/')
     }
   }
@@ -96,7 +128,12 @@ function App() {
       case 'cursus': return <CursusPage />
       case 'paiements': return <PaiementsPage />
       case 'rib': return <RibPage />
-      case 'documents': return <DocumentsPage />
+      case 'documents':
+        return (
+          <DocumentsPage
+            onRequiredDocumentsCountChange={setRequiredDocumentsCount}
+          />
+        )
     }
   }
 
@@ -128,7 +165,12 @@ function App() {
       <div className="flag-strip"><span /><span /><span /></div>
       <Header student={student} />
       <div className="layout">
-        <Sidebar active={page} onNav={setPage} onLogout={handleLogout} />
+        <Sidebar
+          active={page}
+          onNav={setPage}
+          onLogout={handleLogout}
+          requiredDocumentsCount={requiredDocumentsCount}
+        />
         <main className="main">
           {renderPage()}
         </main>

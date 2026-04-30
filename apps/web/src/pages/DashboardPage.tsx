@@ -44,7 +44,7 @@ export function DashboardPage({ onNav }: DashboardPageProps) {
   const profile = data?.profile
   const recent = data?.payments.slice(0, 4) ?? []
   const missingDocuments =
-    data?.documents.filter((document) => document.statut === 'MISSING').length ?? 0
+    data?.documents.filter((document) => document.status === 'REQUIRED').length ?? 0
 
   return (
     <div>

@@ -1,3 +1,5 @@
+import type { StudentDocumentStatus, StudentRibStatus } from '../types'
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ??
   'http://localhost:3000/api'
@@ -64,7 +66,8 @@ export type StudentRib = {
   adresse: string
   telephone: string
   email: string
-  status: string
+  status: StudentRibStatus
+  statusLabel: string
   ibanMasked: string
   updatedAt: string | null
 }
@@ -104,7 +107,9 @@ export type StudentDocument = {
   studentId: string
   nom: string
   type: string
-  statut: string
+  status: StudentDocumentStatus
+  statusLabel: string
+  statut: StudentDocumentStatus
   obligatoire: boolean
   dateDepot: string | null
   originalName?: string | null
@@ -250,6 +255,17 @@ export function uploadStudentDocument(
     method: 'POST',
     body: formData,
   })
+}
+
+export function cancelStudentDocumentSubmission(
+  documentId: string,
+): Promise<StudentDocumentsResponse> {
+  return requestJson<StudentDocumentsResponse>(
+    `/student/documents/${documentId}/submission`,
+    {
+      method: 'DELETE',
+    },
+  )
 }
 
 export async function downloadStudentDocument(

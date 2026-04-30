@@ -41,18 +41,24 @@ type SidebarProps = {
   active: PageId
   onNav: (page: PageId) => void
   onLogout: () => void
+  requiredDocumentsCount: number
 }
 
-const nav: { id: PageId; label: string; icon: string; badge?: string }[] = [
+const nav: { id: PageId; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Tableau de bord', icon: icons.dashboard },
   { id: 'general', label: 'Mon Dossier', icon: icons.profile },
   { id: 'cursus', label: 'Cursus Academique', icon: icons.cursus },
   { id: 'paiements', label: 'Paiements', icon: icons.payments },
   { id: 'rib', label: 'Coordonnees RIB', icon: icons.rib },
-  { id: 'documents', label: 'Documents', icon: icons.documents, badge: '2' },
+  { id: 'documents', label: 'Documents', icon: icons.documents },
 ]
 
-export function Sidebar({ active, onNav, onLogout }: SidebarProps) {
+export function Sidebar({
+  active,
+  onNav,
+  onLogout,
+  requiredDocumentsCount,
+}: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-section-label">Menu principal</div>
@@ -62,7 +68,11 @@ export function Sidebar({ active, onNav, onLogout }: SidebarProps) {
           label={n.label}
           iconPath={n.icon}
           active={active === n.id}
-          badge={n.badge}
+          badge={
+            n.id === 'documents' && requiredDocumentsCount > 0
+              ? String(requiredDocumentsCount)
+              : undefined
+          }
           onClick={() => onNav(n.id)}
         />
       ))}

@@ -254,6 +254,10 @@ a { text-decoration: none; color: inherit; }
 .status-pill.repris { background: var(--green-light); color: var(--green); }
 .status-pill.suspendu { background: oklch(0.97 0.06 80); color: oklch(0.50 0.15 70); }
 .status-pill.actif { background: var(--green-light); color: var(--green); }
+.status-pill.required { background: oklch(0.97 0.06 80); color: oklch(0.50 0.15 70); }
+.status-pill.pending { background: oklch(0.95 0.04 245); color: oklch(0.35 0.10 245); }
+.status-pill.validated { background: var(--green-light); color: var(--green); }
+.status-pill.rejected { background: oklch(0.96 0.04 25); color: var(--red-sn); }
 
 /* PAYMENT TABLE */
 .payment-year-group { margin-bottom: 24px; }

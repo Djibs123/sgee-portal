@@ -1,6 +1,11 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
 import {
@@ -59,6 +64,7 @@ export class StudentPortalService {
   }
 
   async updateRib(studentId: string, data: UpdateRibDto) {
+    const submittedAt = new Date();
     const student = await this.prisma.student.findUnique({
       where: {
         id: studentId,
@@ -92,6 +98,10 @@ export class StudentPortalService {
         address: data.adresse ?? existingRib?.address ?? '',
         phone: data.telephone ?? existingRib?.phone ?? '',
         email: data.email ?? existingRib?.email ?? student.email,
+        status: 'PENDING',
+        submittedAt,
+        reviewedAt: null,
+        reviewComment: null,
       },
       create: {
         studentId,
@@ -103,7 +113,8 @@ export class StudentPortalService {
         address: data.adresse ?? '',
         phone: data.telephone ?? '',
         email: data.email ?? student.email,
-        status: 'VALIDATED',
+        status: 'PENDING',
+        submittedAt,
       },
     });
 
@@ -161,24 +172,124 @@ export class StudentPortalService {
     file: Express.Multer.File,
   ) {
     const submittedAt = new Date();
-    const document = await this.prisma.studentDocument.create({
-      data: {
-        studentId,
-        name: data.label?.trim() || file.originalname,
-        type: data.type,
-        status: 'PROVIDED',
-        required: false,
-        submittedAt,
-        uploadedAt: submittedAt,
-        fileName: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        storagePath: `${UPLOAD_DIR}/${file.filename}`,
+    const documentData = {
+      name: data.label?.trim() || file.originalname,
+      status: 'PENDING' as const,
+      submittedAt,
+      reviewedAt: null,
+      reviewComment: null,
+      uploadedAt: submittedAt,
+      fileName: file.filename,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      storagePath: `${UPLOAD_DIR}/${file.filename}`,
+    };
+
+    if (data.documentId) {
+      const existingDocument = await this.prisma.studentDocument.findUnique({
+        where: {
+          id: data.documentId,
+        },
+      });
+
+      if (!existingDocument) {
+        throw new NotFoundException('Document not found');
+      }
+
+      if (existingDocument.studentId !== studentId) {
+        throw new ForbiddenException('Document does not belong to student');
+      }
+
+      const document = await this.prisma.studentDocument.update({
+        where: {
+          id: existingDocument.id,
+        },
+        data: documentData,
+      });
+
+      return mapStudentDocument(document);
+    }
+
+    const existingRequiredDocument =
+      await this.prisma.studentDocument.findFirst({
+        where: {
+          studentId,
+          type: data.type,
+          status: 'REQUIRED',
+          storagePath: null,
+          fileName: null,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
+
+    const document = existingRequiredDocument
+      ? await this.prisma.studentDocument.update({
+          where: {
+            id: existingRequiredDocument.id,
+          },
+          data: documentData,
+        })
+      : await this.prisma.studentDocument.create({
+          data: {
+            ...documentData,
+            studentId,
+            type: data.type,
+            required: false,
+          },
+        });
+
+    return mapStudentDocument(document);
+  }
+
+  async cancelDocumentSubmission(studentId: string, documentId: string) {
+    const document = await this.prisma.studentDocument.findUnique({
+      where: {
+        id: documentId,
       },
     });
 
-    return mapStudentDocument(document);
+    if (!document || document.studentId !== studentId) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (document.status !== 'PENDING') {
+      throw new ConflictException('Only pending documents can be cancelled');
+    }
+
+    const storagePath = document.storagePath;
+
+    if (document.required) {
+      await this.prisma.studentDocument.update({
+        where: {
+          id: document.id,
+        },
+        data: {
+          status: 'REQUIRED',
+          submittedAt: null,
+          reviewedAt: null,
+          reviewComment: null,
+          uploadedAt: null,
+          fileName: null,
+          originalName: null,
+          mimeType: null,
+          size: null,
+          storagePath: null,
+        },
+      });
+    } else {
+      await this.prisma.studentDocument.delete({
+        where: {
+          id: document.id,
+        },
+      });
+    }
+
+    this.deleteStoredDocumentFile(storagePath);
+
+    return this.getDocuments(studentId);
   }
 
   async downloadDocument(studentId: string, documentId: string) {
@@ -222,5 +333,36 @@ export class StudentPortalService {
       mimeType: document.mimeType,
       originalName: document.originalName,
     };
+  }
+
+  private deleteStoredDocumentFile(storagePath: string | null) {
+    if (!storagePath) {
+      return;
+    }
+
+    try {
+      const rootPath = uploadRoot();
+
+      if (!existsSync(rootPath)) {
+        return;
+      }
+
+      const allowedRoot = realpathSync(rootPath);
+      const resolvedPath = resolve(process.cwd(), storagePath);
+
+      if (!existsSync(resolvedPath)) {
+        return;
+      }
+
+      const realFilePath = realpathSync(resolvedPath);
+
+      if (!isInsideDirectory(realFilePath, allowedRoot)) {
+        return;
+      }
+
+      rmSync(realFilePath);
+    } catch {
+      // File cleanup is best effort; the database state is authoritative.
+    }
   }
 }

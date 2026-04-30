@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
 } from 'class-validator';
@@ -54,6 +55,11 @@ export class UpdateRibDto {
 }
 
 export class UploadDocumentDto {
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsUUID()
+  documentId?: string;
+
   @Transform(trimString)
   @IsString()
   @Length(1, 80)
