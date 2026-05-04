@@ -1180,19 +1180,82 @@ a { text-decoration: none; color: inherit; }
   .public-container,
   .public-topbar-inner,
   .public-header-inner {
-    width: min(calc(100% - 96px), 1400px);
+    width: min(calc(100% - 104px), 1560px);
   }
 
   .public-hero {
-    padding-top: 124px;
-    padding-bottom: 46px;
+    padding-top: 126px;
+    padding-bottom: 52px;
+  }
+
+  .public-hero-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.75fr);
+    gap: clamp(56px, 5vw, 88px);
   }
 
   .public-hero h1 {
-    font-size: clamp(46px, 3.4vw, 56px);
+    max-width: 760px;
+    font-size: clamp(50px, 3.5vw, 62px);
+  }
+
+  .public-hero p {
+    max-width: 660px;
+    font-size: 17px;
   }
 
   .public-access-card {
-    max-width: 410px;
+    max-width: 430px;
+  }
+
+  .public-service-card,
+  .public-steps-grid article {
+    padding: 26px;
+  }
+
+  .public-services-grid {
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .public-container,
+  .public-topbar-inner,
+  .public-header-inner {
+    width: min(calc(100% - 128px), 1680px);
+  }
+
+  .public-hero {
+    padding-top: 128px;
+    padding-bottom: 58px;
+  }
+
+  .public-hero-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(400px, 0.7fr);
+    gap: clamp(72px, 5.5vw, 108px);
+  }
+
+  .public-hero h1 {
+    font-size: clamp(54px, 3.4vw, 66px);
+  }
+
+  .public-access-card {
+    max-width: 450px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .public-container,
+  .public-topbar-inner,
+  .public-header-inner {
+    width: min(calc(100% - 96px), 1720px);
+  }
+
+  .public-hero-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(420px, 0.65fr);
+    gap: clamp(84px, 5vw, 120px);
+  }
+
+  .public-services-grid {
+    gap: 20px;
   }
 }
