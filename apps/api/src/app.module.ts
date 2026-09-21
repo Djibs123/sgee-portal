@@ -10,7 +10,9 @@ import { loggerConfig } from './common/logging/logger.config';
 import { CsrfGuard } from './common/security/csrf.guard';
 import { UploadsModule } from './common/uploads/uploads.module';
 import { HealthController } from './health/health.controller';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ScholarshipModule } from './scholarship/scholarship.module';
 import { StudentPortalModule } from './student-portal/student-portal.module';
 
 @Module({
@@ -21,9 +23,11 @@ import { StudentPortalModule } from './student-portal/student-portal.module';
     PrismaModule,
     AuditModule,
     UploadsModule,
+    NotificationsModule,
     AdminModule,
     AuthModule,
     StudentPortalModule,
+    ScholarshipModule,
   ],
   controllers: [HealthController],
   providers: [

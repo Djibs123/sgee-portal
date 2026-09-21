@@ -32,7 +32,7 @@ pnpm dev               # API :3000, web :5173
 | L04 | RIB versionné, IBAN chiffré | fait | voir git log |
 | L05 | Maintenabilité API, e2e isolés | fait | voir git log |
 | L06 | Modèle métier et règles pures | fait | voir git log |
-| L07 | API renouvellement boursier | à faire | |
+| L07 | API renouvellement boursier | fait | voir git log |
 | L08 | Comptes candidats, mails, mot de passe oublié | à faire | |
 | L09 | API candidature et instruction admin | à faire | |
 | L10 | Fondations front | à faire | |
@@ -86,6 +86,8 @@ Campagnes seed 2026-2027 : renouvellement du 01/09/2026 au 01/01/2027 exclu (pi�
 
 ### L07 — API renouvellement boursier
 `GET /student/campaigns/current`, `GET|POST /student/requests`, `PATCH /student/requests/:id`, `POST /student/requests/:id/submit|withdraw`, pièces de demande via le pipeline L03, `GET|PATCH /student/notifications`, `GET /student/dashboard` (échéance de campagne, statut de demande, pièces manquantes nommées, dernier versement, prochain versement estimé, progression calculée, montants bruts + devise). SUPER_ADMIN : CRUD `/admin/campaigns` et `/admin/academic-years`. e2e.
+Réalisé : `src/notifications/` (service global, `student-notifications.controller.ts`), `src/scholarship/` (`dto/request.dto.ts`, `dto/campaign.dto.ts`, `scholarship.mapper.ts`, `campaigns.service.ts`, `requests.service.ts` avec `RequestOwner` réutilisable pour les candidats, `student-requests.controller.ts`, `admin-campaigns.controller.ts`, `scholarship.module.ts`), `src/student-portal/student-dashboard.service.ts` + route `GET /api/student/dashboard`, nouvelles actions d'audit REQUEST_* / CAMPAIGN_* / ACADEMIC_YEAR_*.
+Contrats : `POST /api/student/requests {campaignId}` (422 si bloquant avec `blockers`, 409 si doublon), `PATCH` accepte `version` (409 si périmée) et ignore les champs hors type, `POST .../submit {honorDeclaration:true}` (422 `missingFields`/`missingDocuments`), pièces via `POST .../documents` multipart (`documentTypeCode`, `file`), une demande retirée est reprise à la recréation (même référence). Liens de notification : `/portal/renouvellement?demande=<id>` et `/candidature?demande=<id>`. e2e `test/renewal.e2e-spec.ts` (campagnes de test sur des années 2091+ ouvertes autour de l'heure courante).
 
 ### L08 — Comptes candidats
 `Applicant` (email en minuscules unique, identité, `emailVerifiedAt`, verrouillage, `studentId?`) ; `OneTimeToken` (EMAIL_VERIFICATION | PASSWORD_RESET, hash SHA-256, expiration, usage unique) ; `MailerService` (console en dev, SMTP via `nodemailer` si `SMTP_URL`) ; inscription, vérification, connexion, déconnexion, profil candidat ; mot de passe oublié pour candidats et boursiers avec réponse identique ; mot de passe de 12 à 128 caractères ; `GET /public/campaigns`. e2e.

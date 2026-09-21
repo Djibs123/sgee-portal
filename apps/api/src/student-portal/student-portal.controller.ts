@@ -25,6 +25,7 @@ import { sendFileDownload } from '../common/http/file-download';
 import { documentUploadOptions } from '../common/uploads/upload.options';
 import { SubmitRibDto } from '../rib/rib.dto';
 import { RibService } from '../rib/rib.service';
+import { StudentDashboardService } from './student-dashboard.service';
 import { UploadDocumentDto } from './student-portal.dto';
 import { StudentPortalService } from './student-portal.service';
 
@@ -34,7 +35,13 @@ export class StudentPortalController {
   constructor(
     private readonly studentPortalService: StudentPortalService,
     private readonly ribService: RibService,
+    private readonly dashboard: StudentDashboardService,
   ) {}
+
+  @Get('dashboard')
+  getDashboard(@CurrentStudent() student: AuthTokenPayload) {
+    return this.dashboard.getDashboard(student.studentId);
+  }
 
   @Get('profile')
   getProfile(@CurrentStudent() student: AuthTokenPayload) {
