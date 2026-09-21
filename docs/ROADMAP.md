@@ -27,7 +27,7 @@ pnpm dev               # API :3000, web :5173
 |---|---|---|---|
 | L00 | Outillage, workspace, base de dev | fait | voir git log |
 | L01 | Sécurité critique API | fait | voir git log |
-| L02 | Sessions, login durci, RBAC, audit | à faire | |
+| L02 | Sessions, login durci, RBAC, audit | fait | voir git log |
 | L03 | Uploads et documents | à faire | |
 | L04 | RIB versionné, IBAN chiffré | à faire | |
 | L05 | Maintenabilité API, e2e isolés | à faire | |
@@ -55,6 +55,8 @@ Réalisé : config typée `src/config/env.ts` (import `env`) ; `src/app.setup.ts
 ### L02 — Sessions, login, RBAC, audit
 Fichiers : `schema.prisma` (+ `Session`, `AuditLog`, champs de verrouillage), `auth/*`, `admin-auth/*`, nouveau `src/audit/*`, `admin/admin.service.ts`.
 Fin : logout révoque la session ; bcrypt factice si compte absent ; email insensible à la casse ; verrouillage 15 min après 5 échecs ; `@Roles()` ; audit des décisions admin.
+Réalisé : `src/auth/session/` (`credentials.ts` règles pures + tests, `session.service.ts` avec expiration 8 h et inactivité 60 min étudiant / 30 min admin, `session.module.ts` ré-exporté par `AuthModule` et `AdminAuthModule`) ; JWT porteur de `sid` ; `AdminAuthGuard` relit le rôle en base et applique `@Roles()` (`admin-auth/roles.decorator.ts`, SUPER_ADMIN passe partout) ; `src/audit/` module global, `AuditService.record(entry, tx?)` et `list()` ; décorateur `@AdminActor()` ; `GET /api/admin/audit-logs` réservé SUPER_ADMIN ; décisions admin en transaction avec audit ; `PrismaService` utilise `DATABASE_POOL_MAX` ; e2e `test/auth-sessions.e2e-spec.ts`.
+Attention : Prisma 7 ne régénère plus le client après `migrate dev` ; lancer `pnpm db:generate`.
 
 ### L03 — Uploads et documents
 Fichiers : nouveaux `src/common/storage/*`, `src/common/uploads/*`, `src/common/http/content-disposition.ts` ; `student-portal/*`, `admin/*` ; `schema.prisma` (+ `DocumentType`).

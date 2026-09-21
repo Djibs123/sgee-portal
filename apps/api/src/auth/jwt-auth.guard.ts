@@ -7,10 +7,17 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { AUTH_COOKIE_NAME, JWT_SECRET } from './auth.constants';
 import { isAuthTokenPayload, type AuthenticatedRequest } from './auth.types';
+import { SessionService } from './session/session.service';
 
+const SESSION_ERROR = 'Session invalide ou expirée';
+
+/** Vérifie la signature du JWT puis l'état de la session serveur (révocation, inactivité). */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly sessions: SessionService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -18,29 +25,36 @@ export class JwtAuthGuard implements CanActivate {
     const token = cookies?.[AUTH_COOKIE_NAME];
 
     if (typeof token !== 'string' || token.trim() === '') {
-      throw new UnauthorizedException('Session invalide ou expiree');
+      throw new UnauthorizedException(SESSION_ERROR);
     }
+
+    let payload: Record<string, unknown>;
 
     try {
-      const payload = await this.jwtService.verifyAsync<
-        Record<string, unknown>
-      >(token, {
-        secret: JWT_SECRET,
-      });
-
-      if (!isAuthTokenPayload(payload)) {
-        throw new UnauthorizedException('Session invalide ou expiree');
-      }
-
-      request.auth = payload;
-
-      return true;
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-
-      throw new UnauthorizedException('Session invalide ou expiree');
+      payload = await this.jwtService.verifyAsync<Record<string, unknown>>(
+        token,
+        { secret: JWT_SECRET },
+      );
+    } catch {
+      throw new UnauthorizedException(SESSION_ERROR);
     }
+
+    if (!isAuthTokenPayload(payload)) {
+      throw new UnauthorizedException(SESSION_ERROR);
+    }
+
+    const session = await this.sessions.validate(
+      payload.sid,
+      'STUDENT',
+      payload.studentId,
+    );
+
+    if (!session) {
+      throw new UnauthorizedException(SESSION_ERROR);
+    }
+
+    request.auth = payload;
+
+    return true;
   }
 }

@@ -5,9 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import { AuditService, type AuditActor } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { uploadRoot } from '../student-portal/upload.config';
-import type { Prisma } from '@prisma/client';
 import type {
   ListStudentsQueryDto,
   OptionalReviewCommentDto,
@@ -19,6 +20,16 @@ import {
   mapAdminStudentSummary,
 } from './admin.mapper';
 
+const studentMinimalSelect = {
+  id: true,
+  studentNumber: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+} satisfies Prisma.StudentSelect;
+
+type ReviewDecision = 'VALIDATED' | 'REJECTED';
+
 function isInsideDirectory(filePath: string, directoryPath: string) {
   return (
     filePath === directoryPath || filePath.startsWith(`${directoryPath}${sep}`)
@@ -27,7 +38,10 @@ function isInsideDirectory(filePath: string, directoryPath: string) {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async listStudents({ search, page, pageSize }: ListStudentsQueryDto) {
     const where: Prisma.StudentWhereInput = search
@@ -61,23 +75,9 @@ export class AdminService {
 
   async getPendingDocuments() {
     const documents = await this.prisma.studentDocument.findMany({
-      where: {
-        status: 'PENDING',
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: {
-        submittedAt: 'asc',
-      },
+      where: { status: 'PENDING' },
+      include: { student: { select: studentMinimalSelect } },
+      orderBy: { submittedAt: 'asc' },
     });
 
     return {
@@ -127,115 +127,33 @@ export class AdminService {
     };
   }
 
-  async validateDocument(documentId: string, data: OptionalReviewCommentDto) {
-    const document = await this.prisma.studentDocument.findUnique({
-      where: {
-        id: documentId,
-      },
-    });
-
-    if (!document) {
-      throw new NotFoundException('Document not found');
-    }
-
-    if (
-      document.status !== 'PENDING' ||
-      !document.storagePath ||
-      !document.originalName ||
-      !document.mimeType
-    ) {
-      throw new ConflictException('Document cannot be reviewed');
-    }
-
-    const updatedDocument = await this.prisma.studentDocument.update({
-      where: {
-        id: document.id,
-      },
-      data: {
-        status: 'VALIDATED',
-        reviewedAt: new Date(),
-        reviewComment: data.reviewComment ?? null,
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return mapAdminDocument(updatedDocument);
+  validateDocument(
+    documentId: string,
+    data: OptionalReviewCommentDto,
+    actor: AuditActor,
+  ) {
+    return this.reviewDocument(
+      documentId,
+      'VALIDATED',
+      data.reviewComment,
+      actor,
+    );
   }
 
-  async rejectDocument(documentId: string, data: RejectDto) {
-    const document = await this.prisma.studentDocument.findUnique({
-      where: {
-        id: documentId,
-      },
-    });
-
-    if (!document) {
-      throw new NotFoundException('Document not found');
-    }
-
-    if (
-      document.status !== 'PENDING' ||
-      !document.storagePath ||
-      !document.originalName ||
-      !document.mimeType
-    ) {
-      throw new ConflictException('Document cannot be reviewed');
-    }
-
-    const updatedDocument = await this.prisma.studentDocument.update({
-      where: {
-        id: document.id,
-      },
-      data: {
-        status: 'REJECTED',
-        reviewedAt: new Date(),
-        reviewComment: data.reviewComment,
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return mapAdminDocument(updatedDocument);
+  rejectDocument(documentId: string, data: RejectDto, actor: AuditActor) {
+    return this.reviewDocument(
+      documentId,
+      'REJECTED',
+      data.reviewComment,
+      actor,
+    );
   }
 
   async getPendingRibs() {
     const ribs = await this.prisma.rib.findMany({
-      where: {
-        status: 'PENDING',
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: {
-        submittedAt: 'asc',
-      },
+      where: { status: 'PENDING' },
+      include: { student: { select: studentMinimalSelect } },
+      orderBy: { submittedAt: 'asc' },
     });
 
     return {
@@ -243,83 +161,116 @@ export class AdminService {
     };
   }
 
-  async validateRib(ribId: string, data: OptionalReviewCommentDto) {
-    const rib = await this.prisma.rib.findUnique({
-      where: {
-        id: ribId,
-      },
-    });
-
-    if (!rib) {
-      throw new NotFoundException('RIB not found');
-    }
-
-    if (rib.status !== 'PENDING') {
-      throw new ConflictException('RIB cannot be reviewed');
-    }
-
-    const updatedRib = await this.prisma.rib.update({
-      where: {
-        id: rib.id,
-      },
-      data: {
-        status: 'VALIDATED',
-        reviewedAt: new Date(),
-        reviewComment: data.reviewComment ?? null,
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return mapAdminRib(updatedRib);
+  validateRib(
+    ribId: string,
+    data: OptionalReviewCommentDto,
+    actor: AuditActor,
+  ) {
+    return this.reviewRib(ribId, 'VALIDATED', data.reviewComment, actor);
   }
 
-  async rejectRib(ribId: string, data: RejectDto) {
-    const rib = await this.prisma.rib.findUnique({
-      where: {
-        id: ribId,
-      },
-    });
+  rejectRib(ribId: string, data: RejectDto, actor: AuditActor) {
+    return this.reviewRib(ribId, 'REJECTED', data.reviewComment, actor);
+  }
 
-    if (!rib) {
-      throw new NotFoundException('RIB not found');
-    }
+  private async reviewDocument(
+    documentId: string,
+    decision: ReviewDecision,
+    reviewComment: string | undefined,
+    actor: AuditActor,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const document = await tx.studentDocument.findUnique({
+        where: { id: documentId },
+      });
 
-    if (rib.status !== 'PENDING') {
-      throw new ConflictException('RIB cannot be reviewed');
-    }
+      if (!document) {
+        throw new NotFoundException('Document introuvable');
+      }
 
-    const updatedRib = await this.prisma.rib.update({
-      where: {
-        id: rib.id,
-      },
-      data: {
-        status: 'REJECTED',
-        reviewedAt: new Date(),
-        reviewComment: data.reviewComment,
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentNumber: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+      if (
+        document.status !== 'PENDING' ||
+        !document.storagePath ||
+        !document.originalName ||
+        !document.mimeType
+      ) {
+        throw new ConflictException('Ce document ne peut pas être instruit');
+      }
+
+      const updatedDocument = await tx.studentDocument.update({
+        where: { id: document.id },
+        data: {
+          status: decision,
+          reviewedAt: new Date(),
+          reviewComment: reviewComment ?? null,
+        },
+        include: { student: { select: studentMinimalSelect } },
+      });
+
+      await this.audit.record(
+        {
+          actor,
+          action:
+            decision === 'VALIDATED'
+              ? 'DOCUMENT_VALIDATED'
+              : 'DOCUMENT_REJECTED',
+          entityType: 'StudentDocument',
+          entityId: document.id,
+          metadata: {
+            studentId: document.studentId,
+            type: document.type,
+            reviewComment: reviewComment ?? null,
           },
         },
-      },
-    });
+        tx,
+      );
 
-    return mapAdminRib(updatedRib);
+      return mapAdminDocument(updatedDocument);
+    });
+  }
+
+  private async reviewRib(
+    ribId: string,
+    decision: ReviewDecision,
+    reviewComment: string | undefined,
+    actor: AuditActor,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const rib = await tx.rib.findUnique({ where: { id: ribId } });
+
+      if (!rib) {
+        throw new NotFoundException('RIB introuvable');
+      }
+
+      if (rib.status !== 'PENDING') {
+        throw new ConflictException('Ce RIB ne peut pas être instruit');
+      }
+
+      const updatedRib = await tx.rib.update({
+        where: { id: rib.id },
+        data: {
+          status: decision,
+          reviewedAt: new Date(),
+          reviewComment: reviewComment ?? null,
+        },
+        include: { student: { select: studentMinimalSelect } },
+      });
+
+      await this.audit.record(
+        {
+          actor,
+          action: decision === 'VALIDATED' ? 'RIB_VALIDATED' : 'RIB_REJECTED',
+          entityType: 'Rib',
+          entityId: rib.id,
+          metadata: {
+            studentId: rib.studentId,
+            reviewComment: reviewComment ?? null,
+          },
+        },
+        tx,
+      );
+
+      return mapAdminRib(updatedRib);
+    });
   }
 }

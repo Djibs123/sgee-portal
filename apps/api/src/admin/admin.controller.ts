@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
+import { AdminActor } from '../admin-auth/current-admin.decorator';
+import { Roles } from '../admin-auth/roles.decorator';
+import { AuditService, type AuditActor } from '../audit/audit.service';
 import {
+  ListAuditLogsQueryDto,
   ListStudentsQueryDto,
   OptionalReviewCommentDto,
   RejectDto,
@@ -45,11 +49,20 @@ function contentDispositionAttachment(filename: string) {
 @Controller('admin')
 @UseGuards(AdminAuthGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Get('students')
   listStudents(@Query() query: ListStudentsQueryDto) {
     return this.adminService.listStudents(query);
+  }
+
+  @Get('audit-logs')
+  @Roles('SUPER_ADMIN')
+  listAuditLogs(@Query() query: ListAuditLogsQueryDto) {
+    return this.audit.list(query);
   }
 
   @Get('documents/pending')
@@ -77,16 +90,18 @@ export class AdminController {
   validateDocument(
     @Param('documentId', ParseUUIDPipe) documentId: string,
     @Body() body: OptionalReviewCommentDto,
+    @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.validateDocument(documentId, body);
+    return this.adminService.validateDocument(documentId, body, actor);
   }
 
   @Patch('documents/:documentId/reject')
   rejectDocument(
     @Param('documentId', ParseUUIDPipe) documentId: string,
     @Body() body: RejectDto,
+    @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.rejectDocument(documentId, body);
+    return this.adminService.rejectDocument(documentId, body, actor);
   }
 
   @Get('ribs/pending')
@@ -98,15 +113,17 @@ export class AdminController {
   validateRib(
     @Param('ribId', ParseUUIDPipe) ribId: string,
     @Body() body: OptionalReviewCommentDto,
+    @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.validateRib(ribId, body);
+    return this.adminService.validateRib(ribId, body, actor);
   }
 
   @Patch('ribs/:ribId/reject')
   rejectRib(
     @Param('ribId', ParseUUIDPipe) ribId: string,
     @Body() body: RejectDto,
+    @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.rejectRib(ribId, body);
+    return this.adminService.rejectRib(ribId, body, actor);
   }
 }

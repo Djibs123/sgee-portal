@@ -17,7 +17,8 @@
     "db:migrate": "pnpm --filter api exec prisma migrate dev",
     "db:deploy": "pnpm --filter api exec prisma migrate deploy",
     "db:seed": "pnpm --filter api exec prisma db seed",
-    "db:studio": "pnpm --filter api exec prisma studio"
+    "db:studio": "pnpm --filter api exec prisma studio",
+    "db:generate": "pnpm --filter api exec prisma generate"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

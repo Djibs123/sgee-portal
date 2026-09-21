@@ -1,5 +1,13 @@
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
 
 const trimOptionalString = ({ value }: { value: unknown }) => {
   if (typeof value !== 'string') {
@@ -40,6 +48,28 @@ export class ListStudentsQueryDto extends PaginationQueryDto {
   @IsString()
   @Length(1, 100)
   search?: string;
+}
+
+export class ListAuditLogsQueryDto extends PaginationQueryDto {
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  action?: string;
+
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  entityType?: string;
+
+  @IsOptional()
+  @IsUUID()
+  entityId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  actorId?: string;
 }
 
 export class RejectDto {

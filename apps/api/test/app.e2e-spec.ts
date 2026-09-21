@@ -72,7 +72,9 @@ describe('AppController (e2e)', () => {
           return;
         }
 
-        expect(body.message).toBe('Identifiants invalides');
+        expect(body.message).toBe(
+          'Identifiants invalides ou compte temporairement verrouillé',
+        );
       });
   });
 

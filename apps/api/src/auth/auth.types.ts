@@ -2,6 +2,8 @@ import type { Request } from 'express';
 
 export type AuthTokenPayload = {
   sub: string;
+  /** Identifiant de la session serveur (révocable). */
+  sid: string;
   studentId: string;
   codeEtudiant: string;
 };
@@ -21,6 +23,7 @@ export const isAuthTokenPayload = (
 
   return (
     typeof payload.sub === 'string' &&
+    typeof payload.sid === 'string' &&
     typeof payload.studentId === 'string' &&
     typeof payload.codeEtudiant === 'string' &&
     payload.sub === payload.studentId

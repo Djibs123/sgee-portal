@@ -5,10 +5,12 @@ import { JWT_EXPIRES_IN, JWT_SECRET } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { SessionModule } from './session/session.module';
 
 @Module({
   imports: [
     PrismaModule,
+    SessionModule,
     JwtModule.register({
       secret: JWT_SECRET,
       signOptions: {
@@ -18,6 +20,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthGuard],
-  exports: [AuthService, JwtAuthGuard, JwtModule],
+  // SessionModule est ré-exporté : tout module qui utilise JwtAuthGuard en a besoin.
+  exports: [AuthService, JwtAuthGuard, JwtModule, SessionModule],
 })
 export class AuthModule {}

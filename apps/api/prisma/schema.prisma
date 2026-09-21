@@ -24,18 +24,33 @@ enum AdminRole {
   SUPER_ADMIN
 }
 
+enum SessionSubject {
+  STUDENT
+  ADMIN
+  APPLICANT
+}
+
+enum AuditActorType {
+  STUDENT
+  ADMIN
+  APPLICANT
+  SYSTEM
+}
+
 model Student {
-  id                String    @id @default(uuid())
-  studentNumber     String    @unique
-  firstName         String
-  lastName          String
-  email             String    @unique
-  birthDate         DateTime
-  scholarshipStatus String
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-  passwordHash      String?
-  lastLoginAt       DateTime?
+  id                  String    @id @default(uuid())
+  studentNumber       String    @unique
+  firstName           String
+  lastName            String
+  email               String    @unique
+  birthDate           DateTime
+  scholarshipStatus   String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
+  passwordHash        String?
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
 
   matricule               String?
   level                   String?
@@ -65,22 +80,66 @@ model Student {
   rib       Rib?
   cursus    CursusEntry[]
   documents StudentDocument[]
+  sessions  Session[]
 
   @@index([matricule])
   @@index([academicYear])
 }
 
 model AdminUser {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         AdminRole @default(ADMIN)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  name                String
+  passwordHash        String
+  role                AdminRole @default(ADMIN)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions Session[]
 
   @@index([role])
+}
+
+/// Session serveur : le JWT ne porte que son identifiant (`sid`), ce qui permet la révocation.
+model Session {
+  id          String         @id @default(uuid())
+  subjectType SessionSubject
+  studentId   String?
+  adminUserId String?
+  createdAt   DateTime       @default(now())
+  lastSeenAt  DateTime       @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  ip          String?
+  userAgent   String?
+
+  student   Student?   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  adminUser AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([adminUserId])
+  @@index([expiresAt])
+}
+
+/// Journal d'audit append-only des actions sensibles.
+model AuditLog {
+  id         String         @id @default(uuid())
+  actorType  AuditActorType
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime       @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorType, actorId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Payment {

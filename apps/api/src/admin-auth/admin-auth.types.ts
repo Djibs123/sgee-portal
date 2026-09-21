@@ -3,8 +3,11 @@ import type { Request } from 'express';
 
 export type AdminAuthTokenPayload = {
   sub: string;
+  /** Identifiant de la session serveur (révocable). */
+  sid: string;
   adminId: string;
   email: string;
+  /** Rôle courant, relu en base à chaque requête par `AdminAuthGuard`. */
   role: AdminRole;
 };
 
@@ -23,6 +26,7 @@ export const isAdminAuthTokenPayload = (
 
   return (
     typeof payload.sub === 'string' &&
+    typeof payload.sid === 'string' &&
     typeof payload.adminId === 'string' &&
     typeof payload.email === 'string' &&
     (payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN') &&

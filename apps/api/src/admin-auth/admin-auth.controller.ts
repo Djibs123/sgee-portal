@@ -4,11 +4,13 @@ import {
   Get,
   HttpCode,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { clientMeta } from '../common/http/client-meta';
 import {
   ADMIN_AUTH_COOKIE_CLEAR_OPTIONS,
   ADMIN_AUTH_COOKIE_NAME,
@@ -17,8 +19,8 @@ import {
 import { AdminLoginDto } from './admin-auth.dto';
 import { AdminAuthGuard } from './admin-auth.guard';
 import { AdminAuthService } from './admin-auth.service';
-import { CurrentAdmin } from './current-admin.decorator';
 import type { AdminAuthTokenPayload } from './admin-auth.types';
+import { CurrentAdmin } from './current-admin.decorator';
 
 @Controller('admin')
 export class AdminAuthController {
@@ -29,9 +31,10 @@ export class AdminAuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() body: AdminLoginDto,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.adminAuthService.login(body);
+    const result = await this.adminAuthService.login(body, clientMeta(request));
 
     response.cookie(
       ADMIN_AUTH_COOKIE_NAME,
@@ -47,13 +50,22 @@ export class AdminAuthController {
 
   @Post('auth/logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) response: Response) {
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const cookies = request.cookies as Record<string, unknown> | undefined;
+    const result = await this.adminAuthService.logout(
+      cookies?.[ADMIN_AUTH_COOKIE_NAME],
+      clientMeta(request),
+    );
+
     response.clearCookie(
       ADMIN_AUTH_COOKIE_NAME,
       ADMIN_AUTH_COOKIE_CLEAR_OPTIONS,
     );
 
-    return this.adminAuthService.logout();
+    return result;
   }
 
   @Get('me')
