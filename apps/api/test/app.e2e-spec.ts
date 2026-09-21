@@ -552,7 +552,7 @@ describe('AppController (e2e)', () => {
         lastName: 'Cancel',
         email: `cancel-other-${testSuffix}@sgee.local`,
         birthDate: new Date('2001-01-01'),
-        scholarshipStatus: 'Repris',
+        scholarshipStatus: 'ACTIVE',
       },
       select: {
         id: true,
@@ -774,7 +774,7 @@ describe('AppController (e2e)', () => {
         lastName: 'Student',
         email: `other-${testSuffix}@sgee.local`,
         birthDate: new Date('2001-01-01'),
-        scholarshipStatus: 'Repris',
+        scholarshipStatus: 'ACTIVE',
       },
       select: {
         id: true,
@@ -1122,7 +1122,7 @@ describe('AppController (e2e)', () => {
           lastName: `Rib ${suffix}`,
           email: `admin-rib-${suffix}-${testSuffix}@sgee.local`,
           birthDate: new Date('2001-01-01'),
-          scholarshipStatus: 'Repris',
+          scholarshipStatus: 'ACTIVE',
         },
       });
       createdStudentIds.push(student.id);

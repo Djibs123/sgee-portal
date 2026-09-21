@@ -1,10 +1,13 @@
 import type {
   CursusEntry,
   Payment,
+  PaymentStatus,
+  ScholarshipStatus,
   Student,
   StudentDocument,
   StudentDocumentStatus,
 } from '../generated/prisma/client';
+import { levelLabel } from '../scholarship/domain/study-levels';
 
 const formatDate = (date: Date | null | undefined) =>
   date ? new Intl.DateTimeFormat('fr-FR').format(date) : '';
@@ -26,8 +29,21 @@ const formatCfaAmount = (value: number | null | undefined) =>
 const documentStatusLabels: Record<StudentDocumentStatus, string> = {
   REQUIRED: 'Requis',
   PENDING: 'En attente de validation',
-  VALIDATED: 'Valide',
-  REJECTED: 'Refuse',
+  VALIDATED: 'Validé',
+  REJECTED: 'Refusé',
+};
+
+export const scholarshipStatusLabels: Record<ScholarshipStatus, string> = {
+  ACTIVE: 'Active',
+  SUSPENDED: 'Suspendue',
+  CANCELLED: 'Annulée',
+  COMPLETED: 'Terminée',
+};
+
+const paymentStatusLabels: Record<PaymentStatus, string> = {
+  PAID: 'Versé',
+  PENDING: 'En attente',
+  CANCELLED: 'Annulé',
 };
 
 export function mapStudentProfile(student: Student) {
@@ -56,7 +72,8 @@ export function mapStudentProfile(student: Student) {
     academie: student.academy ?? '',
     pays: student.country ?? '',
     anneeScolaire: student.academicYear ?? '',
-    statutBourse: student.scholarshipStatus,
+    statutBourse: scholarshipStatusLabels[student.scholarshipStatus],
+    niveauCode: student.levelCode,
     typeBourse: student.scholarshipType ?? '',
     modePaiement: student.paymentMethod ?? '',
     dateNaissance: formatDate(student.birthDate),
@@ -88,6 +105,9 @@ export function mapCursusEntry(entry: CursusEntry) {
     specialite: entry.specialty,
     diplome: entry.diploma,
     statut: entry.status,
+    niveauCode: entry.levelCode,
+    niveauLibelle: entry.levelCode ? levelLabel(entry.levelCode) : entry.level,
+    resultat: entry.result,
     actuel: entry.isCurrent,
   };
 }
@@ -101,7 +121,12 @@ export function mapPayment(payment: Payment) {
     montant: formatDecimalAmount(payment.amount, payment.currency),
     devise: payment.currency,
     base: formatDecimalAmount(payment.baseAmount, payment.currency),
-    statut: payment.status,
+    statut: paymentStatusLabels[payment.status],
+    // Valeurs brutes : le front formate selon la devise (EUR, XOF…).
+    status: payment.status,
+    amount: payment.amount.toFixed(2),
+    baseAmount: payment.baseAmount.toFixed(2),
+    paidAt: payment.paymentDate.toISOString(),
   };
 }
 

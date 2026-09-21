@@ -21,7 +21,7 @@ describe('Sessions, verrouillage et rôles (e2e)', () => {
         lastName: suffix,
         email: `session-${suffix.toLowerCase()}-${Date.now()}@sgee.local`,
         birthDate: new Date('2001-01-01'),
-        scholarshipStatus: 'Repris',
+        scholarshipStatus: 'ACTIVE',
         passwordHash: await bcrypt.hash(PASSWORD, 4),
       },
     });

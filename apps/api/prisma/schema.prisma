@@ -39,19 +39,88 @@ enum AuditActorType {
   SYSTEM
 }
 
+/// État de la bourse d'un boursier.
+enum ScholarshipStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  CANCELLED
+}
+
+enum CampaignType {
+  RENEWAL
+  NEW_APPLICATION
+}
+
+/// Niveau d'études codifié (le cycle se déduit du code).
+enum StudyLevel {
+  PREPA1
+  PREPA2
+  BTS1
+  BTS2
+  L1
+  L2
+  L3
+  M1
+  M2
+  ING1
+  ING2
+  ING3
+  D1
+  D2
+  D3
+  D4
+  OTHER
+}
+
+enum StudyCycle {
+  PREPA
+  BTS
+  LICENCE
+  MASTER
+  INGENIEUR
+  DOCTORAT
+  OTHER
+}
+
+/// Résultat de l'année précédente : admis, redoublant, ajourné.
+enum AcademicResult {
+  PASSED
+  REPEATED
+  FAILED
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INCOMPLETE
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
 model Student {
-  id                  String    @id @default(uuid())
-  studentNumber       String    @unique
+  id                  String            @id @default(uuid())
+  studentNumber       String            @unique
   firstName           String
   lastName            String
-  email               String    @unique
+  email               String            @unique
   birthDate           DateTime
-  scholarshipStatus   String
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @default(now()) @updatedAt
+  scholarshipStatus   ScholarshipStatus @default(ACTIVE)
+  /// Niveau courant codifié ; `level` reste le libellé hérité du système legacy.
+  levelCode           StudyLevel?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now()) @updatedAt
   passwordHash        String?
   lastLoginAt         DateTime?
-  failedLoginAttempts Int       @default(0)
+  failedLoginAttempts Int               @default(0)
   lockedUntil         DateTime?
 
   matricule               String?
@@ -78,13 +147,17 @@ model Student {
   arrivalDate             DateTime?
   lastProcessingDate      DateTime?
 
-  payments  Payment[]
-  ribs      Rib[]
-  cursus    CursusEntry[]
-  documents StudentDocument[]
-  sessions  Session[]
+  payments      Payment[]
+  ribs          Rib[]
+  cursus        CursusEntry[]
+  documents     StudentDocument[]
+  sessions      Session[]
+  requests      ScholarshipRequest[]
+  notifications Notification[]
+  applicant     Applicant?
 
   @@index([matricule])
+  @@index([scholarshipStatus])
   @@index([academicYear])
 }
 
@@ -100,9 +173,202 @@ model AdminUser {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  sessions Session[]
+  sessions        Session[]
+  decidedRequests ScholarshipRequest[]
 
   @@index([role])
+}
+
+/// Candidat à une première bourse. Devient boursier (`studentId`) à l'attribution.
+model Applicant {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  birthDate           DateTime  @db.Date
+  phone               String?
+  nationalIdNumber    String?
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  studentId           String?   @unique
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student       Student?             @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  requests      ScholarshipRequest[]
+  sessions      Session[]
+  notifications Notification[]
+}
+
+/// Année universitaire (ex. code `2026-2027`, libellé `2026/2027`).
+model AcademicYear {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  label     String
+  startsOn  DateTime @db.Date
+  endsOn    DateTime @db.Date
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns Campaign[]
+}
+
+/// Campagne annuelle de renouvellement ou de candidature. Son statut (à venir,
+/// ouverte, clôturée) se calcule à partir des dates : aucune tâche planifiée.
+model Campaign {
+  id                String       @id @default(uuid())
+  type              CampaignType
+  academicYearId    String
+  title             String
+  instructions      String?
+  opensAt           DateTime
+  closesAt          DateTime
+  /// Clôture anticipée décidée par un super-admin.
+  closedAt          DateTime?
+  /// Âge maximal hors doctorat (candidatures) ; 30 ans selon le règlement SGEE.
+  maxAgeNonDoctoral Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  academicYear AcademicYear          @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  requirements CampaignRequirement[]
+  requests     ScholarshipRequest[]
+
+  @@unique([type, academicYearId])
+  @@index([opensAt, closesAt])
+}
+
+/// Pièce exigée par une campagne, éventuellement limitée à certains cycles.
+model CampaignRequirement {
+  id               String       @id @default(uuid())
+  campaignId       String
+  documentTypeCode String
+  /// Cycles concernés ; liste vide = tous les cycles.
+  cycles           StudyCycle[]
+  isRequired       Boolean      @default(true)
+  sortOrder        Int          @default(0)
+
+  campaign     Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  documentType DocumentType @relation(fields: [documentTypeCode], references: [code])
+
+  @@unique([campaignId, documentTypeCode])
+}
+
+/// Demande de renouvellement (boursier) ou de première bourse (candidat).
+model ScholarshipRequest {
+  id                   String          @id @default(uuid())
+  /// Référence lisible, ex. REN-2026-000123 ou CAN-2026-000045.
+  reference            String          @unique
+  type                 CampaignType
+  campaignId           String
+  studentId            String?
+  applicantId          String?
+  status               RequestStatus   @default(DRAFT)
+  // Situation pour l'année demandée
+  targetLevel          StudyLevel?
+  institution          String?
+  city                 String?
+  country              String?
+  fieldOfStudy         String?
+  programName          String?
+  // Année précédente (renouvellement)
+  previousLevel        StudyLevel?
+  previousResult       AcademicResult?
+  previousAverage      Decimal?        @db.Decimal(4, 2)
+  changedField         Boolean         @default(false)
+  changedInstitution   Boolean         @default(false)
+  // Candidature
+  baccalaureateSeries  String?
+  baccalaureateYear    Int?
+  baccalaureateMention String?
+  baccalaureateAverage Decimal?        @db.Decimal(4, 2)
+  motivation           String?
+  honorDeclarationAt   DateTime?
+  /// Alertes d'éligibilité figées à la soumission, pour l'instructeur.
+  eligibilityWarnings  Json?
+  submittedAt          DateTime?
+  decidedAt            DateTime?
+  decidedById          String?
+  decisionComment      String?
+  /// Verrou optimiste : incrémenté à chaque modification.
+  version              Int             @default(0)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  campaign  Campaign               @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  student   Student?               @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  applicant Applicant?             @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  decidedBy AdminUser?             @relation(fields: [decidedById], references: [id], onDelete: SetNull)
+  documents RequestDocument[]
+  history   RequestStatusHistory[]
+
+  @@unique([studentId, campaignId])
+  @@unique([applicantId, campaignId])
+  @@index([campaignId, status])
+  @@index([status, submittedAt])
+}
+
+/// Pièce justificative rattachée à une demande (un fichier par type de pièce).
+model RequestDocument {
+  id               String                @id @default(uuid())
+  requestId        String
+  documentTypeCode String
+  status           StudentDocumentStatus @default(REQUIRED)
+  required         Boolean               @default(true)
+  fileName         String?
+  originalName     String?
+  mimeType         String?
+  size             Int?
+  storagePath      String?
+  submittedAt      DateTime?
+  reviewedAt       DateTime?
+  reviewComment    String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  request      ScholarshipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  documentType DocumentType       @relation(fields: [documentTypeCode], references: [code])
+
+  @@unique([requestId, documentTypeCode])
+}
+
+/// Historique des changements de statut d'une demande (traçabilité).
+model RequestStatusHistory {
+  id         String         @id @default(uuid())
+  requestId  String
+  fromStatus RequestStatus?
+  toStatus   RequestStatus
+  actorType  AuditActorType
+  actorId    String?
+  comment    String?
+  createdAt  DateTime       @default(now())
+
+  request ScholarshipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+/// Notification in-app pour un boursier ou un candidat.
+model Notification {
+  id          String    @id @default(uuid())
+  studentId   String?
+  applicantId String?
+  type        String
+  title       String
+  body        String
+  link        String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  student   Student?   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  applicant Applicant? @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, readAt])
+  @@index([applicantId, readAt])
 }
 
 /// Session serveur : le JWT ne porte que son identifiant (`sid`), ce qui permet la révocation.
@@ -111,6 +377,7 @@ model Session {
   subjectType SessionSubject
   studentId   String?
   adminUserId String?
+  applicantId String?
   createdAt   DateTime       @default(now())
   lastSeenAt  DateTime       @default(now())
   expiresAt   DateTime
@@ -120,9 +387,11 @@ model Session {
 
   student   Student?   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   adminUser AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  applicant Applicant? @relation(fields: [applicantId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([adminUserId])
+  @@index([applicantId])
   @@index([expiresAt])
 }
 
@@ -145,18 +414,18 @@ model AuditLog {
 }
 
 model Payment {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   studentId    String
   month        String
   academicYear String
   paymentDate  DateTime
-  amount       Decimal  @db.Decimal(10, 2)
+  amount       Decimal       @db.Decimal(10, 2)
   currency     String
-  baseAmount   Decimal  @db.Decimal(10, 2)
-  status       String
-  reference    String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  baseAmount   Decimal       @db.Decimal(10, 2)
+  status       PaymentStatus @default(PAID)
+  reference    String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -203,7 +472,7 @@ model Rib {
 }
 
 model CursusEntry {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   studentId    String
   academicYear String
   institution  String
@@ -211,9 +480,12 @@ model CursusEntry {
   specialty    String
   diploma      String
   status       String
-  isCurrent    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  /// Niveau codifié et résultat, utilisés par les règles de redoublement.
+  levelCode    StudyLevel?
+  result       AcademicResult?
+  isCurrent    Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -232,7 +504,9 @@ model DocumentType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  studentDocuments StudentDocument[]
+  studentDocuments     StudentDocument[]
+  campaignRequirements CampaignRequirement[]
+  requestDocuments     RequestDocument[]
 }
 
 model StudentDocument {

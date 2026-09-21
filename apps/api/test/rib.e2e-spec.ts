@@ -32,7 +32,7 @@ describe('RIB versionné et IBAN chiffré (e2e)', () => {
         lastName: suffix,
         email: `rib-${unique.toLowerCase()}@sgee.local`,
         birthDate: new Date('2001-01-01'),
-        scholarshipStatus: 'Repris',
+        scholarshipStatus: 'ACTIVE',
         passwordHash: await bcrypt.hash(PASSWORD, 4),
       },
     });
