@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma, Rib } from '@prisma/client';
+import type { Prisma, Rib } from '../generated/prisma/client';
 import { AuditService, type AuditActor } from '../audit/audit.service';
 import { fieldCipher } from '../common/crypto/field-cipher';
 import { normalizeIban, protectIban } from '../common/crypto/iban';

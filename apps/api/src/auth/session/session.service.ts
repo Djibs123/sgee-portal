@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AdminRole, SessionSubject } from '@prisma/client';
+import type { AdminRole, SessionSubject } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /** Durée de vie absolue d'une session (alignée sur l'expiration du JWT). */

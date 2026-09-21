@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/prisma/client';
 import bcrypt from 'bcryptjs';
 import { protectIban } from '../src/common/crypto/iban';
 
@@ -8,6 +8,11 @@ const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error('DATABASE_URL is not defined');
+}
+
+// Le seed crée des comptes aux mots de passe connus : interdit en production.
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('Seed de développement refusé en production');
 }
 
 const prisma = new PrismaClient({

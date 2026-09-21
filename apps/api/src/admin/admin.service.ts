@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../generated/prisma/client';
 import { AuditService, type AuditActor } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadedFilesService } from '../common/uploads/uploaded-files.service';

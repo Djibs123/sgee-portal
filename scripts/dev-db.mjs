@@ -29,17 +29,31 @@ async function startServer(label, dataDir, port) {
   const server = new PGLiteSocketServer({ db, host: HOST, port, maxConnections: MAX_CONNECTIONS });
 
   await server.start();
-  console.log(`[db] ${label} prêt sur postgresql://postgres@${HOST}:${port}/postgres`);
+  // Le port réel est connu après démarrage (utile avec le port 0 = port libre).
+  const actualPort = Number(server.getServerConn().split(':').pop());
 
-  return { db, server };
+  console.log(`[db] ${label} prêt sur postgresql://postgres@${HOST}:${actualPort}/postgres`);
+
+  return { db, server, port: actualPort };
 }
 
-mkdirSync(DATA_DIR, { recursive: true });
+// `--memory` : une seule base éphémère sur un port libre (tests e2e). La ligne
+// `SGEE_DB_READY <port>` permet au processus parent de s'y connecter.
+const memoryMode = process.argv.includes('--memory');
+let instances;
 
-const instances = [
-  await startServer(`sgee_dev (${DATA_DIR})`, DATA_DIR, DEV_PORT),
-  await startServer('shadow (mémoire)', undefined, SHADOW_PORT),
-];
+if (memoryMode) {
+  const instance = await startServer('test (mémoire)', undefined, 0);
+
+  instances = [instance];
+  console.log(`SGEE_DB_READY ${instance.port}`);
+} else {
+  mkdirSync(DATA_DIR, { recursive: true });
+  instances = [
+    await startServer(`sgee_dev (${DATA_DIR})`, DATA_DIR, DEV_PORT),
+    await startServer('shadow (mémoire)', undefined, SHADOW_PORT),
+  ];
+}
 
 async function shutdown() {
   console.log('[db] arrêt…');

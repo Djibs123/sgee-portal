@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import type { AdminRole } from '@prisma/client';
+import type { AdminRole } from '../generated/prisma/client';
 import { SessionService } from '../auth/session/session.service';
 import {
   ADMIN_AUTH_COOKIE_NAME,

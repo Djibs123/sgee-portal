@@ -1,4 +1,4 @@
-import type { AdminRole } from '@prisma/client';
+import type { AdminRole } from '../generated/prisma/client';
 import type { Request } from 'express';
 
 export type AdminAuthTokenPayload = {

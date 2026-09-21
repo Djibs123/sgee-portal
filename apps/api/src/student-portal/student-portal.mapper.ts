@@ -4,7 +4,7 @@ import type {
   Student,
   StudentDocument,
   StudentDocumentStatus,
-} from '@prisma/client';
+} from '../generated/prisma/client';
 
 const formatDate = (date: Date | null | undefined) =>
   date ? new Intl.DateTimeFormat('fr-FR').format(date) : '';

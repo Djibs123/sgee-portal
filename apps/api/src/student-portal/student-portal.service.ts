@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { StudentDocumentStatus } from '@prisma/client';
+import type { StudentDocumentStatus } from '../generated/prisma/client';
 import {
   UploadedFilesService,
   type StoredUpload,
@@ -53,7 +53,7 @@ export class StudentPortalService {
     });
 
     if (!student) {
-      throw new NotFoundException('Student profile not found');
+      throw new NotFoundException('Profil étudiant introuvable');
     }
 
     return mapStudentProfile(student);

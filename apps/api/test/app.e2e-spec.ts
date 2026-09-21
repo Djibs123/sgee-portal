@@ -63,8 +63,25 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/api (GET)', () => {
-    return api().get('/api').expect(200).expect('Hello World!');
+  it('expose une sonde de santé qui vérifie la base', async () => {
+    const response = await api().get('/api/health').expect(200);
+
+    expect(response.body).toMatchObject({ status: 'ok', database: 'up' });
+    expect(response.headers['x-request-id']).toBeDefined();
+  });
+
+  it('traduit les erreurs Prisma connues en réponses HTTP propres', async () => {
+    const agent = api();
+
+    await agent
+      .post('/api/admin/auth/login')
+      .send({ email: 'admin@sgee.local', password: 'admin12345' })
+      .expect(200);
+    // Un identifiant inconnu mais valide ne doit jamais produire de 500.
+    await agent
+      .patch(`/api/admin/ribs/${randomUUID()}/validate`)
+      .send({})
+      .expect(404);
   });
 
   it('validates and rejects invalid login requests', async () => {

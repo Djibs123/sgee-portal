@@ -30,7 +30,7 @@ pnpm dev               # API :3000, web :5173
 | L02 | Sessions, login durci, RBAC, audit | fait | voir git log |
 | L03 | Uploads et documents | fait | voir git log |
 | L04 | RIB versionné, IBAN chiffré | fait | voir git log |
-| L05 | Maintenabilité API, e2e isolés | à faire | |
+| L05 | Maintenabilité API, e2e isolés | fait | voir git log |
 | L06 | Modèle métier et règles pures | à faire | |
 | L07 | API renouvellement boursier | à faire | |
 | L08 | Comptes candidats, mails, mot de passe oublié | à faire | |
@@ -74,6 +74,7 @@ Dette : supprimer la colonne `Rib.iban` quand toutes les bases auront été repr
 ### L05 — Maintenabilité API
 Fichiers : `schema.prisma` (générateur), imports Prisma, `main.ts`, `app.module.ts`, `prisma/seed.ts`, `test/*`, nouveaux `src/health/*`, `src/common/filters/*`.
 Fin : générateur `prisma-client`, logs pino, `/api/health`, filtre d'erreurs Prisma, Swagger hors prod, e2e sur base isolée. Suite complète verte.
+Réalisé : client Prisma généré dans `src/generated/prisma` (non versionné, `postinstall: prisma generate`), import `../generated/prisma/client` ; Jest lancé avec `--experimental-vm-modules` (le client charge son moteur WASM par `import()`) et `moduleNameMapper` pour les imports `.js` ; `nestjs-pino` (`src/common/logging/logger.config.ts`, `X-Request-Id`, masquage cookies/mots de passe/IBAN, `LOG_LEVEL`) ; `GET /api/health` (`src/health/`) ; `PrismaExceptionFilter` global ; Swagger sur `/api/docs` hors production avec plugin CLI ; seed refusé en production ; e2e isolés : `test/global-setup.ts` démarre `scripts/dev-db.mjs --memory` (ou utilise `TEST_DATABASE_URL` en CI), migre et seede ; `tsconfig.build.json` limité à `src` (corrige `start:prod`, qui cherchait `dist/main.js`). API compilée vérifiée en réel.
 
 ### L06 — Modèle métier et règles pures
 Modèles : `AcademicYear` ; `Campaign` (RENEWAL | NEW_APPLICATION, `opensAt`, `closesAt`, `closedAt?`, `maxAgeNonDoctoral`, statut calculé sans cron) ; `CampaignRequirement` ; `ScholarshipRequest` (référence `REN-2026-000123` ou `CAN-…`, `studentId?` ou `applicantId?`, statut, `StudyLevel` L1…M2 / ING1-3 / D1-D4, établissement, ville, pays, filière, résultat N-1 `PASSED|REPEATED|FAILED`, moyenne, bac, changement de filière, attestation sur l'honneur, décision, `version`) avec `@@unique([studentId, campaignId])` et `@@unique([applicantId, campaignId])` ; `RequestDocument` ; `RequestStatusHistory` ; `Notification`. Enums `ScholarshipStatus` (« Repris » → ACTIVE), `PaymentStatus` (« Verse » → PAID) ; `CursusEntry.levelCode/result`.

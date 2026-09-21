@@ -26,7 +26,7 @@ describe('Sécurité HTTP (e2e)', () => {
   });
 
   it('pose les en-têtes de sécurité et masque Express', async () => {
-    const response = await ctx.api().get('/api').expect(200);
+    const response = await ctx.api().get('/api/health').expect(200);
 
     expect(response.headers['x-powered-by']).toBeUndefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');

@@ -1,4 +1,4 @@
-import type { Rib, RibStatus, Student } from '@prisma/client';
+import type { Rib, RibStatus, Student } from '../generated/prisma/client';
 
 const ribStatusLabels: Record<RibStatus, string> = {
   PENDING: 'En attente de validation',

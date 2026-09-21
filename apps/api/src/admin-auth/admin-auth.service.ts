@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { AdminUser } from '@prisma/client';
+import type { AdminUser } from '../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { checkCredentials } from '../auth/session/credentials';
 import {

@@ -17,6 +17,18 @@ const MIN_SECRET_LENGTH = 32;
 /** Clé de développement uniquement : refusée en production. */
 const DEV_DATA_ENCRYPTION_KEY = 'F5deLC0vjwQkrK+RGpqPawXqmp9i9lGBtObi7Qgit1o=';
 
+const LOG_LEVELS = [
+  'fatal',
+  'error',
+  'warn',
+  'info',
+  'debug',
+  'trace',
+  'silent',
+] as const;
+
+type LogLevel = (typeof LOG_LEVELS)[number];
+
 const toInt = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
 
@@ -77,12 +89,27 @@ class EnvironmentVariables {
   /** Clé AES-256 en base64 (32 octets) pour chiffrer les données bancaires. */
   @IsString()
   DATA_ENCRYPTION_KEY = DEV_DATA_ENCRYPTION_KEY;
+
+  /** Par défaut : `debug` en dev, `info` en production, `silent` sous Jest. */
+  @IsOptional()
+  @IsIn(LOG_LEVELS)
+  LOG_LEVEL?: LogLevel;
 }
 
+const DEFAULT_LOG_LEVEL: Record<EnvironmentVariables['NODE_ENV'], LogLevel> = {
+  development: 'debug',
+  production: 'info',
+  test: 'silent',
+};
+
 export type AppEnv = Readonly<
-  Omit<EnvironmentVariables, 'FRONTEND_ORIGIN' | 'TRUST_PROXY'> & {
+  Omit<
+    EnvironmentVariables,
+    'FRONTEND_ORIGIN' | 'TRUST_PROXY' | 'LOG_LEVEL'
+  > & {
     FRONTEND_ORIGINS: string[];
     TRUST_PROXY: boolean | number | string;
+    LOG_LEVEL: LogLevel;
     isProduction: boolean;
   }
 >;
@@ -157,10 +184,11 @@ export function validateEnv(source: NodeJS.ProcessEnv): AppEnv {
     }
   }
 
-  const { FRONTEND_ORIGIN, TRUST_PROXY, ...rest } = config;
+  const { FRONTEND_ORIGIN, TRUST_PROXY, LOG_LEVEL, ...rest } = config;
 
   return Object.freeze({
     ...rest,
+    LOG_LEVEL: LOG_LEVEL ?? DEFAULT_LOG_LEVEL[config.NODE_ENV],
     FRONTEND_ORIGINS: FRONTEND_ORIGIN.split(',')
       .map((origin) => origin.trim().replace(/\/$/, ''))
       .filter(Boolean),
