@@ -1,6 +1,21 @@
+# Dépendances et builds
+node_modules/
+dist/
+coverage/
+
+# Environnements locaux (secrets)
+.env
+.env.*
+!.env.example
+
+# Données locales
 pgdata/
 postgres-data/
 pglog.txt
 logfile
-apps/api/uploads/
 uploads/
+apps/api/uploads/
+
+# Divers
+*.log
+.DS_Store
