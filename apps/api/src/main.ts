@@ -1,27 +1,14 @@
-import 'dotenv/config';
-import cookieParser from 'cookie-parser';
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
+import { env } from './config/env';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.enableCors({
-    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
-    credentials: true,
-    exposedHeaders: ['Content-Disposition'],
-  });
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-  app.setGlobalPrefix('api');
-  app.enableShutdownHooks();
-  await app.listen(process.env.PORT ?? 3000);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  configureApp(app);
+  await app.listen(env.PORT);
 }
 
 bootstrap().catch((error) => {

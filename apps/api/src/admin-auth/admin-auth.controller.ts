@@ -7,7 +7,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import {
   ADMIN_AUTH_COOKIE_CLEAR_OPTIONS,
@@ -26,7 +26,6 @@ export class AdminAuthController {
 
   @Post('auth/login')
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() body: AdminLoginDto,

@@ -1,14 +1,13 @@
 import 'dotenv/config';
-import cookieParser from 'cookie-parser';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/app.setup';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -34,7 +33,9 @@ async function ensureAdmin(prisma: PrismaService) {
 }
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+  // Agent HTTP qui conserve les cookies et envoie l'en-tête anti-CSRF comme le front.
+  const api = () => request.agent(app.getHttpServer()).set('X-SGEE-CSRF', '1');
+  let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeEach(async () => {
@@ -42,34 +43,20 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
     prisma = moduleFixture.get(PrismaService);
-    app.use(cookieParser());
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    app.setGlobalPrefix('api');
+    configureApp(app);
     await app.init();
   });
 
   it('/api (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/api')
-      .expect(200)
-      .expect('Hello World!');
+    return api().get('/api').expect(200).expect('Hello World!');
   });
 
   it('validates and rejects invalid login requests', async () => {
-    await request(app.getHttpServer())
-      .post('/api/auth/login')
-      .send({})
-      .expect(400);
+    await api().post('/api/auth/login').send({}).expect(400);
 
-    await request(app.getHttpServer())
+    await api()
       .post('/api/auth/login')
       .send({
         identifier: 'test@sgee.local',
@@ -90,7 +77,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('protects student endpoints with a login session', async () => {
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
 
     await agent.get('/api/me').expect(401);
     await agent.get('/api/student/profile').expect(401);
@@ -167,9 +154,9 @@ describe('AppController (e2e)', () => {
   });
 
   it('updates the current student RIB only with a valid session', async () => {
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
 
-    await request(app.getHttpServer())
+    await api()
       .patch('/api/student/rib')
       .send({
         banque: 'Banque Test',
@@ -240,17 +227,15 @@ describe('AppController (e2e)', () => {
   });
 
   it('uploads documents only with a valid session and accepted file type', async () => {
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
     const testType = `TEST_DOCUMENT_${Date.now()}`;
     const requiredTestType = `TEST_REQUIRED_DOCUMENT_${Date.now()}`;
     const untouchedRequiredTestType = `TEST_UNTOUCHED_REQUIRED_${Date.now()}`;
     let requiredDocumentId: string | null = null;
 
-    await request(app.getHttpServer())
-      .get('/api/student/documents')
-      .expect(401);
+    await api().get('/api/student/documents').expect(401);
 
-    await request(app.getHttpServer())
+    await api()
       .post('/api/student/documents')
       .field('type', testType)
       .attach('file', Buffer.from('%PDF-1.4\n%test\n'), {
@@ -471,7 +456,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('cancels only pending document submissions safely', async () => {
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
     const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
     const testSuffix = Date.now();
     const fileNames = {
@@ -630,7 +615,7 @@ describe('AppController (e2e)', () => {
     createdDocumentIds.push(otherStudentDocument.id);
 
     try {
-      await request(app.getHttpServer())
+      await api()
         .delete(
           `/api/student/documents/${pendingRequiredDocument.id}/submission`,
         )
@@ -759,7 +744,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('downloads only the current student document files securely', async () => {
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
     const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
     const testSuffix = Date.now();
     const fileName = `download-${testSuffix}.pdf`;
@@ -852,7 +837,7 @@ describe('AppController (e2e)', () => {
     createdDocumentIds.push(otherStudentDocument.id);
 
     try {
-      await request(app.getHttpServer())
+      await api()
         .get(`/api/student/documents/${downloadableDocument.id}/download`)
         .expect(401);
 
@@ -917,9 +902,9 @@ describe('AppController (e2e)', () => {
   it('authenticates admin users with a separate session cookie', async () => {
     await ensureAdmin(prisma);
 
-    await request(app.getHttpServer()).get('/api/admin/me').expect(401);
+    await api().get('/api/admin/me').expect(401);
 
-    await request(app.getHttpServer())
+    await api()
       .post('/api/admin/auth/login')
       .send({
         email: 'admin-e2e@sgee.local',
@@ -927,7 +912,7 @@ describe('AppController (e2e)', () => {
       })
       .expect(401);
 
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
 
     await agent
       .post('/api/admin/auth/login')
@@ -973,7 +958,7 @@ describe('AppController (e2e)', () => {
   it('lets admins list, download, validate and reject pending documents', async () => {
     await ensureAdmin(prisma);
 
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
     const uploadDirectory = join(process.cwd(), 'uploads', 'student-documents');
     const testSuffix = Date.now();
     const fileNames = {
@@ -1051,11 +1036,9 @@ describe('AppController (e2e)', () => {
     createdDocumentIds.push(validatedDocument.id);
 
     try {
-      await request(app.getHttpServer())
-        .get('/api/admin/documents/pending')
-        .expect(401);
+      await api().get('/api/admin/documents/pending').expect(401);
 
-      await request(app.getHttpServer())
+      await api()
         .get(`/api/admin/documents/${pendingValidateDocument.id}/download`)
         .expect(401);
 
@@ -1160,7 +1143,7 @@ describe('AppController (e2e)', () => {
   it('lets admins list, validate and reject pending RIBs', async () => {
     await ensureAdmin(prisma);
 
-    const agent = request.agent(app.getHttpServer());
+    const agent = api();
     const testSuffix = Date.now();
     const createdStudentIds: string[] = [];
 
@@ -1205,9 +1188,7 @@ describe('AppController (e2e)', () => {
     const validatedRib = await createStudentWithRib('VALIDATED', 'VALIDATED');
 
     try {
-      await request(app.getHttpServer())
-        .get('/api/admin/ribs/pending')
-        .expect(401);
+      await api().get('/api/admin/ribs/pending').expect(401);
 
       await agent
         .post('/api/admin/auth/login')

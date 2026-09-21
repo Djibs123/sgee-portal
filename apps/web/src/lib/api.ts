@@ -209,12 +209,19 @@ export type AdminPendingRibsResponse = {
   items: AdminPendingRib[]
 }
 
+const SAFE_METHODS = new Set(['GET', 'HEAD'])
+
+// L'API refuse toute requête modifiante sans cet en-tête (protection CSRF).
+const CSRF_HEADERS = { 'X-SGEE-CSRF': '1' }
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase()
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
     headers: {
       Accept: 'application/json',
+      ...(SAFE_METHODS.has(method) ? {} : CSRF_HEADERS),
       ...init?.headers,
     },
   })

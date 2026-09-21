@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Res,
@@ -90,7 +91,7 @@ export class StudentPortalController {
   @Get('documents/:documentId/download')
   async downloadDocument(
     @CurrentStudent() student: AuthTokenPayload,
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
     @Res() response: Response,
   ) {
     const document = await this.studentPortalService.downloadDocument(
@@ -110,7 +111,7 @@ export class StudentPortalController {
   @Delete('documents/:documentId/submission')
   cancelDocumentSubmission(
     @CurrentStudent() student: AuthTokenPayload,
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
   ) {
     return this.studentPortalService.cancelDocumentSubmission(
       student.studentId,

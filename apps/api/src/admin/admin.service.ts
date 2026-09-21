@@ -7,8 +7,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { uploadRoot } from '../student-portal/upload.config';
-import type { OptionalReviewCommentDto, RejectDto } from './admin.dto';
-import { mapAdminDocument, mapAdminRib } from './admin.mapper';
+import type { Prisma } from '@prisma/client';
+import type {
+  ListStudentsQueryDto,
+  OptionalReviewCommentDto,
+  RejectDto,
+} from './admin.dto';
+import {
+  mapAdminDocument,
+  mapAdminRib,
+  mapAdminStudentSummary,
+} from './admin.mapper';
 
 function isInsideDirectory(filePath: string, directoryPath: string) {
   return (
@@ -19,6 +28,36 @@ function isInsideDirectory(filePath: string, directoryPath: string) {
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listStudents({ search, page, pageSize }: ListStudentsQueryDto) {
+    const where: Prisma.StudentWhereInput = search
+      ? {
+          OR: [
+            { studentNumber: { contains: search, mode: 'insensitive' } },
+            { matricule: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { firstName: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+    const [total, students] = await this.prisma.$transaction([
+      this.prisma.student.count({ where }),
+      this.prisma.student.findMany({
+        where,
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items: students.map(mapAdminStudentSummary),
+      page,
+      pageSize,
+      total,
+    };
+  }
 
   async getPendingDocuments() {
     const documents = await this.prisma.studentDocument.findMany({

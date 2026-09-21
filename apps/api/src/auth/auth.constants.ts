@@ -1,14 +1,15 @@
 import type { CookieOptions } from 'express';
+import { env } from '../config/env';
 
-const DEV_JWT_SECRET = 'dev-sgee-portal-change-me';
-
-export const isProduction = process.env.NODE_ENV === 'production';
-export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'sgee_session';
+export const isProduction = env.isProduction;
+export const AUTH_COOKIE_NAME = env.AUTH_COOKIE_NAME;
 export const AUTH_COOKIE_MAX_AGE_MS = 1000 * 60 * 60 * 8;
 
+// SameSite=strict : le portail et l'API sont servis depuis le même site ; le cookie
+// n'est jamais envoyé depuis un site tiers (défense CSRF en profondeur).
 export const AUTH_COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: 'strict',
   secure: isProduction,
   path: '/',
   maxAge: AUTH_COOKIE_MAX_AGE_MS,
@@ -21,15 +22,6 @@ export const AUTH_COOKIE_CLEAR_OPTIONS: CookieOptions = {
   path: AUTH_COOKIE_OPTIONS.path,
 };
 
-export const JWT_SECRET = process.env.JWT_SECRET ?? DEV_JWT_SECRET;
+export const JWT_SECRET = env.JWT_SECRET;
 
 export const JWT_EXPIRES_IN = '8h';
-
-if (
-  isProduction &&
-  (!process.env.JWT_SECRET ||
-    process.env.JWT_SECRET === DEV_JWT_SECRET ||
-    process.env.JWT_SECRET.length < 32)
-) {
-  throw new Error('JWT_SECRET must be set to a strong value in production');
-}

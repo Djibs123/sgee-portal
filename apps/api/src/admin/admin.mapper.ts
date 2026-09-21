@@ -43,6 +43,23 @@ const mapStudentMinimal = (student: StudentMinimal) => ({
   email: student.email,
 });
 
+/** Résumé étudiant pour le back-office : aucune donnée d'authentification. */
+export function mapAdminStudentSummary(student: Student) {
+  return {
+    id: student.id,
+    code: student.studentNumber,
+    matricule: student.matricule,
+    firstName: student.firstName,
+    lastName: student.lastName,
+    email: student.email,
+    level: student.level,
+    field: student.field,
+    academicYear: student.academicYear,
+    scholarshipStatus: student.scholarshipStatus,
+    lastLoginAt: student.lastLoginAt?.toISOString() ?? null,
+  };
+}
+
 export function mapAdminDocument(document: AdminDocumentWithStudent) {
   return {
     id: document.id,

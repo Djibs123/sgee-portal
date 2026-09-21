@@ -3,13 +3,19 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
-import { OptionalReviewCommentDto, RejectDto } from './admin.dto';
+import {
+  ListStudentsQueryDto,
+  OptionalReviewCommentDto,
+  RejectDto,
+} from './admin.dto';
 import { AdminService } from './admin.service';
 
 function toAsciiFilename(filename: string) {
@@ -41,6 +47,11 @@ function contentDispositionAttachment(filename: string) {
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('students')
+  listStudents(@Query() query: ListStudentsQueryDto) {
+    return this.adminService.listStudents(query);
+  }
+
   @Get('documents/pending')
   getPendingDocuments() {
     return this.adminService.getPendingDocuments();
@@ -48,7 +59,7 @@ export class AdminController {
 
   @Get('documents/:documentId/download')
   async downloadDocument(
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
     @Res() response: Response,
   ) {
     const document = await this.adminService.downloadDocument(documentId);
@@ -64,7 +75,7 @@ export class AdminController {
 
   @Patch('documents/:documentId/validate')
   validateDocument(
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
     @Body() body: OptionalReviewCommentDto,
   ) {
     return this.adminService.validateDocument(documentId, body);
@@ -72,7 +83,7 @@ export class AdminController {
 
   @Patch('documents/:documentId/reject')
   rejectDocument(
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
     @Body() body: RejectDto,
   ) {
     return this.adminService.rejectDocument(documentId, body);
@@ -85,14 +96,17 @@ export class AdminController {
 
   @Patch('ribs/:ribId/validate')
   validateRib(
-    @Param('ribId') ribId: string,
+    @Param('ribId', ParseUUIDPipe) ribId: string,
     @Body() body: OptionalReviewCommentDto,
   ) {
     return this.adminService.validateRib(ribId, body);
   }
 
   @Patch('ribs/:ribId/reject')
-  rejectRib(@Param('ribId') ribId: string, @Body() body: RejectDto) {
+  rejectRib(
+    @Param('ribId', ParseUUIDPipe) ribId: string,
+    @Body() body: RejectDto,
+  ) {
     return this.adminService.rejectRib(ribId, body);
   }
 }

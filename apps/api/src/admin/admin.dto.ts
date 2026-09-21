@@ -1,5 +1,5 @@
-import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 
 const trimOptionalString = ({ value }: { value: unknown }) => {
   if (typeof value !== 'string') {
@@ -17,6 +17,29 @@ export class OptionalReviewCommentDto {
   @IsString()
   @Length(0, 500)
   reviewComment?: string;
+}
+
+export class PaginationQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize = 20;
+}
+
+export class ListStudentsQueryDto extends PaginationQueryDto {
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  search?: string;
 }
 
 export class RejectDto {

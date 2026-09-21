@@ -26,7 +26,7 @@ pnpm dev               # API :3000, web :5173
 | Lot | Objet | Statut | Commit |
 |---|---|---|---|
 | L00 | Outillage, workspace, base de dev | fait | voir git log |
-| L01 | Sécurité critique API | à faire | |
+| L01 | Sécurité critique API | fait | voir git log |
 | L02 | Sessions, login durci, RBAC, audit | à faire | |
 | L03 | Uploads et documents | à faire | |
 | L04 | RIB versionné, IBAN chiffré | à faire | |
@@ -50,6 +50,7 @@ pnpm dev               # API :3000, web :5173
 ### L01 — Sécurité critique API
 Fichiers : `apps/api/src/main.ts`, `app.module.ts`, `students/*` (suppression), `admin/*`, `auth/auth.module.ts`, `admin-auth/admin-auth.module.ts`, `auth/auth.constants.ts`, `admin-auth/admin-auth.constants.ts`, nouveau `src/config/*`, nouveau `src/common/security/csrf.middleware.ts`, `test/app.e2e-spec.ts`, `apps/web/src/lib/api.ts`.
 Fin : `/api/students` absent ; `GET /api/admin/students` paginé sans secret ; env validé au démarrage ; Helmet ; CSRF `X-SGEE-CSRF: 1` exigé sur méthodes non sûres et `Sec-Fetch-Site: cross-site` refusé ; cookies `SameSite=strict` ; throttler global unique ; `ParseUUIDPipe` sur les identifiants.
+Réalisé : config typée `src/config/env.ts` (import `env`) ; `src/app.setup.ts` `configureApp()` partagé par `main.ts` et les e2e ; `src/common/security/csrf.guard.ts` en `APP_GUARD` ; pagination réutilisable `PaginationQueryDto` (`admin.dto.ts`) ; e2e : utilitaire `test/utils/test-app.ts` (`createTestApp()`, `api()` avec en-tête CSRF, `raw()` sans) et `test/security.e2e-spec.ts` ; `test:e2e` en `--runInBand`.
 
 ### L02 — Sessions, login, RBAC, audit
 Fichiers : `schema.prisma` (+ `Session`, `AuditLog`, champs de verrouillage), `auth/*`, `admin-auth/*`, nouveau `src/audit/*`, `admin/admin.service.ts`.
