@@ -14,6 +14,7 @@ import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
 import { AdminActor } from '../admin-auth/current-admin.decorator';
 import { Roles } from '../admin-auth/roles.decorator';
 import { AuditService, type AuditActor } from '../audit/audit.service';
+import { sendFileDownload } from '../common/http/file-download';
 import {
   ListAuditLogsQueryDto,
   ListStudentsQueryDto,
@@ -21,30 +22,6 @@ import {
   RejectDto,
 } from './admin.dto';
 import { AdminService } from './admin.service';
-
-function toAsciiFilename(filename: string) {
-  const normalized = filename
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\x20-\x7E]/g, '')
-    .replace(/["\\]/g, '')
-    .trim();
-
-  return normalized || 'document';
-}
-
-function encodeRfc5987Value(value: string) {
-  return encodeURIComponent(value)
-    .replace(
-      /['()]/g,
-      (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
-    )
-    .replace(/\*/g, '%2A');
-}
-
-function contentDispositionAttachment(filename: string) {
-  return `attachment; filename="${toAsciiFilename(filename)}"; filename*=UTF-8''${encodeRfc5987Value(filename)}`;
-}
 
 @Controller('admin')
 @UseGuards(AdminAuthGuard)
@@ -75,15 +52,9 @@ export class AdminController {
     @Param('documentId', ParseUUIDPipe) documentId: string,
     @Res() response: Response,
   ) {
-    const document = await this.adminService.downloadDocument(documentId);
+    const file = await this.adminService.downloadDocument(documentId);
 
-    response.setHeader('Content-Type', document.mimeType);
-    response.setHeader(
-      'Content-Disposition',
-      contentDispositionAttachment(document.originalName),
-    );
-
-    return response.sendFile(document.absolutePath);
+    return sendFileDownload(response, file);
   }
 
   @Patch('documents/:documentId/validate')

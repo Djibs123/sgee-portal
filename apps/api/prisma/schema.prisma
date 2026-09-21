@@ -207,10 +207,24 @@ model CursusEntry {
   @@index([isCurrent])
 }
 
+/// Catalogue des pièces justificatives (dossier, renouvellement, candidature).
+model DocumentType {
+  code        String   @id
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studentDocuments StudentDocument[]
+}
+
 model StudentDocument {
   id            String                @id @default(uuid())
   studentId     String
   name          String
+  /// Code du catalogue `DocumentType`.
   type          String
   status        StudentDocumentStatus @default(REQUIRED)
   required      Boolean               @default(true)
@@ -226,7 +240,8 @@ model StudentDocument {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documentType DocumentType @relation(fields: [type], references: [code], onUpdate: Cascade)
 
   @@index([studentId])
   @@index([type])

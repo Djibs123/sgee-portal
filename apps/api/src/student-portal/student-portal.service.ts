@@ -1,11 +1,14 @@
-import { existsSync, realpathSync, rmSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
 import {
+  BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { StudentDocumentStatus } from '@prisma/client';
+import {
+  UploadedFilesService,
+  type StoredUpload,
+} from '../common/uploads/uploaded-files.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
 import {
@@ -15,7 +18,9 @@ import {
   mapStudentDocument,
   mapStudentProfile,
 } from './student-portal.mapper';
-import { UPLOAD_DIR, uploadRoot } from './upload.config';
+
+/** Seuls les documents attendus ou refusés peuvent recevoir un nouveau fichier. */
+const REPLACEABLE_STATUSES: StudentDocumentStatus[] = ['REQUIRED', 'REJECTED'];
 
 const maskIban = (iban: string) => {
   if (iban.length <= 8) {
@@ -25,15 +30,29 @@ const maskIban = (iban: string) => {
   return `${iban.slice(0, 4)} ${'*'.repeat(Math.max(iban.length - 8, 0))} ${iban.slice(-4)}`;
 };
 
-function isInsideDirectory(filePath: string, directoryPath: string) {
-  return (
-    filePath === directoryPath || filePath.startsWith(`${directoryPath}${sep}`)
-  );
+function submissionData(stored: StoredUpload) {
+  const now = new Date();
+
+  return {
+    status: 'PENDING' as const,
+    submittedAt: now,
+    uploadedAt: now,
+    reviewedAt: null,
+    reviewComment: null,
+    fileName: stored.fileName,
+    originalName: stored.originalName,
+    mimeType: stored.mimeType,
+    size: stored.size,
+    storagePath: stored.storagePath,
+  };
 }
 
 @Injectable()
 export class StudentPortalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly files: UploadedFilesService,
+  ) {}
 
   async getProfile(studentId: string) {
     const student = await this.prisma.student.findUnique({
@@ -166,106 +185,87 @@ export class StudentPortalService {
     };
   }
 
+  async getDocumentTypes() {
+    const types = await this.prisma.documentType.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+      select: { code: true, label: true, description: true },
+    });
+
+    return { items: types };
+  }
+
   async uploadDocument(
     studentId: string,
     data: UploadDocumentDto,
-    file: Express.Multer.File,
+    file: Express.Multer.File | undefined,
   ) {
-    const submittedAt = new Date();
-    const documentData = {
-      name: data.label?.trim() || file.originalname,
-      status: 'PENDING' as const,
-      submittedAt,
-      reviewedAt: null,
-      reviewComment: null,
-      uploadedAt: submittedAt,
-      fileName: file.filename,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-      storagePath: `${UPLOAD_DIR}/${file.filename}`,
-    };
-
-    if (data.documentId) {
-      const existingDocument = await this.prisma.studentDocument.findUnique({
-        where: {
-          id: data.documentId,
-        },
-      });
-
-      if (!existingDocument) {
-        throw new NotFoundException('Document not found');
-      }
-
-      if (existingDocument.studentId !== studentId) {
-        throw new ForbiddenException('Document does not belong to student');
-      }
-
-      const document = await this.prisma.studentDocument.update({
-        where: {
-          id: existingDocument.id,
-        },
-        data: documentData,
-      });
-
-      return mapStudentDocument(document);
-    }
-
-    const existingRequiredDocument =
-      await this.prisma.studentDocument.findFirst({
-        where: {
-          studentId,
-          type: data.type,
-          status: 'REQUIRED',
-          storagePath: null,
-          fileName: null,
-        },
-        orderBy: {
-          createdAt: 'asc',
-        },
-      });
-
-    const document = existingRequiredDocument
-      ? await this.prisma.studentDocument.update({
+    const target = data.documentId
+      ? await this.findOwnedDocument(studentId, data.documentId)
+      : await this.prisma.studentDocument.findFirst({
           where: {
-            id: existingRequiredDocument.id,
-          },
-          data: documentData,
-        })
-      : await this.prisma.studentDocument.create({
-          data: {
-            ...documentData,
             studentId,
             type: data.type,
-            required: false,
+            status: { in: REPLACEABLE_STATUSES },
           },
+          orderBy: { createdAt: 'asc' },
         });
 
-    return mapStudentDocument(document);
+    if (target && !REPLACEABLE_STATUSES.includes(target.status)) {
+      throw new ConflictException(
+        target.status === 'PENDING'
+          ? 'Un dépôt est déjà en attente : annulez-le avant d’en envoyer un autre'
+          : 'Ce document est déjà validé',
+      );
+    }
+
+    const documentType = target
+      ? null
+      : await this.prisma.documentType.findFirst({
+          where: { code: data.type, isActive: true },
+        });
+
+    if (!target && !documentType) {
+      throw new BadRequestException('Type de document inconnu');
+    }
+
+    // Toutes les vérifications métier sont faites : le fichier peut être écrit.
+    const stored = await this.files.store(file);
+
+    try {
+      const document = target
+        ? await this.replaceFile(target.id, stored)
+        : await this.prisma.studentDocument.create({
+            data: {
+              ...submissionData(stored),
+              studentId,
+              type: data.type,
+              name: data.label?.trim() || documentType!.label,
+              required: false,
+            },
+          });
+
+      await this.files.remove(target?.storagePath);
+
+      return mapStudentDocument(document);
+    } catch (error) {
+      await this.files.remove(stored.storagePath);
+      throw error;
+    }
   }
 
   async cancelDocumentSubmission(studentId: string, documentId: string) {
-    const document = await this.prisma.studentDocument.findUnique({
-      where: {
-        id: documentId,
-      },
-    });
-
-    if (!document || document.studentId !== studentId) {
-      throw new NotFoundException('Document not found');
-    }
+    const document = await this.findOwnedDocument(studentId, documentId);
 
     if (document.status !== 'PENDING') {
-      throw new ConflictException('Only pending documents can be cancelled');
+      throw new ConflictException(
+        'Seuls les dépôts en attente peuvent être annulés',
+      );
     }
-
-    const storagePath = document.storagePath;
 
     if (document.required) {
       await this.prisma.studentDocument.update({
-        where: {
-          id: document.id,
-        },
+        where: { id: document.id },
         data: {
           status: 'REQUIRED',
           submittedAt: null,
@@ -280,89 +280,46 @@ export class StudentPortalService {
         },
       });
     } else {
-      await this.prisma.studentDocument.delete({
-        where: {
-          id: document.id,
-        },
-      });
+      await this.prisma.studentDocument.delete({ where: { id: document.id } });
     }
 
-    this.deleteStoredDocumentFile(storagePath);
+    await this.files.remove(document.storagePath);
 
     return this.getDocuments(studentId);
   }
 
   async downloadDocument(studentId: string, documentId: string) {
-    const document = await this.prisma.studentDocument.findUnique({
-      where: {
-        id: documentId,
-      },
-    });
+    const document = await this.findOwnedDocument(studentId, documentId);
 
-    if (
-      !document ||
-      document.studentId !== studentId ||
-      !document.storagePath ||
-      !document.originalName ||
-      !document.mimeType
-    ) {
-      throw new NotFoundException('Document not found');
-    }
-
-    const rootPath = uploadRoot();
-
-    if (!existsSync(rootPath)) {
-      throw new NotFoundException('Document file not found');
-    }
-
-    const allowedRoot = realpathSync(rootPath);
-    const resolvedPath = resolve(process.cwd(), document.storagePath);
-
-    if (!existsSync(resolvedPath)) {
-      throw new NotFoundException('Document file not found');
-    }
-
-    const realFilePath = realpathSync(resolvedPath);
-
-    if (!isInsideDirectory(realFilePath, allowedRoot)) {
-      throw new NotFoundException('Document not found');
-    }
-
-    return {
-      absolutePath: realFilePath,
-      mimeType: document.mimeType,
-      originalName: document.originalName,
-    };
+    return this.files.resolveDownload(document);
   }
 
-  private deleteStoredDocumentFile(storagePath: string | null) {
-    if (!storagePath) {
-      return;
+  /** 404 aussi quand le document appartient à un autre étudiant : aucune fuite d'existence. */
+  private async findOwnedDocument(studentId: string, documentId: string) {
+    const document = await this.prisma.studentDocument.findUnique({
+      where: { id: documentId },
+    });
+
+    if (!document || document.studentId !== studentId) {
+      throw new NotFoundException('Document introuvable');
     }
 
-    try {
-      const rootPath = uploadRoot();
+    return document;
+  }
 
-      if (!existsSync(rootPath)) {
-        return;
-      }
+  /** Mise à jour conditionnelle : échoue si le statut a changé entre-temps (course). */
+  private async replaceFile(documentId: string, stored: StoredUpload) {
+    const { count } = await this.prisma.studentDocument.updateMany({
+      where: { id: documentId, status: { in: REPLACEABLE_STATUSES } },
+      data: submissionData(stored),
+    });
 
-      const allowedRoot = realpathSync(rootPath);
-      const resolvedPath = resolve(process.cwd(), storagePath);
-
-      if (!existsSync(resolvedPath)) {
-        return;
-      }
-
-      const realFilePath = realpathSync(resolvedPath);
-
-      if (!isInsideDirectory(realFilePath, allowedRoot)) {
-        return;
-      }
-
-      rmSync(realFilePath);
-    } catch {
-      // File cleanup is best effort; the database state is authoritative.
+    if (count === 0) {
+      throw new ConflictException('Le document a changé, réessayez');
     }
+
+    return this.prisma.studentDocument.findUniqueOrThrow({
+      where: { id: documentId },
+    });
   }
 }

@@ -28,7 +28,7 @@ pnpm dev               # API :3000, web :5173
 | L00 | Outillage, workspace, base de dev | fait | voir git log |
 | L01 | Sécurité critique API | fait | voir git log |
 | L02 | Sessions, login durci, RBAC, audit | fait | voir git log |
-| L03 | Uploads et documents | à faire | |
+| L03 | Uploads et documents | fait | voir git log |
 | L04 | RIB versionné, IBAN chiffré | à faire | |
 | L05 | Maintenabilité API, e2e isolés | à faire | |
 | L06 | Modèle métier et règles pures | à faire | |
@@ -61,6 +61,8 @@ Attention : Prisma 7 ne régénère plus le client après `migrate dev` ; lancer
 ### L03 — Uploads et documents
 Fichiers : nouveaux `src/common/storage/*`, `src/common/uploads/*`, `src/common/http/content-disposition.ts` ; `student-portal/*`, `admin/*` ; `schema.prisma` (+ `DocumentType`).
 Fin : magic bytes, extension déduite, nettoyage en erreur, re-dépôt limité à REQUIRED/REJECTED, en-têtes de téléchargement durcis, plus de code dupliqué.
+Réalisé : `src/common/uploads/` (`file-signature.ts` magic bytes + heuristique PDF actif + nom nettoyé ; `upload.options.ts` multer en mémoire avec `defParamCharset: 'utf8'` ; `UploadedFilesService.store/resolveDownload/remove` ; `UploadsModule` global) ; `src/common/storage/document-storage.ts` (`DocumentStorage` abstrait, `LocalDiskStorage`) ; `src/common/http/file-download.ts` (`sendFileDownload` : CSP sandbox, nosniff, no-store) ; `student-portal/upload.config.ts` supprimé ; table `DocumentType` (11 codes dont CERTIFICAT_INSCRIPTION, ATTESTATION_RESULTATS, PIECE_IDENTITE, ATTESTATION_ADMISSION, RELEVE_BAC, RIB, LETTRE_DIRECTEUR_THESE, AUTRE) avec clé étrangère depuis `StudentDocument.type` ; `GET /api/student/document-types` ; e2e `test/documents.e2e-spec.ts`. Réutiliser `UploadedFilesService` pour les pièces de demande (L07, L09).
+Bug corrigé au passage : les noms de fichiers accentués étaient décodés en latin1.
 
 ### L04 — RIB versionné et IBAN chiffré
 Fichiers : `schema.prisma` (Rib), `student-portal/*` (RIB), `admin/*` (RIB), nouveau `src/common/crypto/*`, `prisma/scripts/encrypt-existing-ibans.ts`, `apps/web/src/pages/RibPage.tsx`, `AdminDashboardPage.tsx`, `lib/api.ts`.

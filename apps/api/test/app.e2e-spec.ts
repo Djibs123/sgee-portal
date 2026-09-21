@@ -37,6 +37,20 @@ describe('AppController (e2e)', () => {
   const api = () => request.agent(app.getHttpServer()).set('X-SGEE-CSRF', '1');
   let app: NestExpressApplication;
   let prisma: PrismaService;
+  const testDocumentTypes: string[] = [];
+
+  // Les documents référencent le catalogue DocumentType : chaque type de test y est
+  // enregistré puis supprimé après le test.
+  const docType = async (code: string) => {
+    await prisma.documentType.upsert({
+      where: { code },
+      update: {},
+      create: { code, label: code, isActive: true },
+    });
+    testDocumentTypes.push(code);
+
+    return code;
+  };
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -233,6 +247,10 @@ describe('AppController (e2e)', () => {
     const testType = `TEST_DOCUMENT_${Date.now()}`;
     const requiredTestType = `TEST_REQUIRED_DOCUMENT_${Date.now()}`;
     const untouchedRequiredTestType = `TEST_UNTOUCHED_REQUIRED_${Date.now()}`;
+
+    await docType(testType);
+    await docType(requiredTestType);
+    await docType(untouchedRequiredTestType);
     let requiredDocumentId: string | null = null;
 
     await api().get('/api/student/documents').expect(401);
@@ -499,7 +517,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Cancel required status',
-        type: `CANCEL_REQUIRED_STATUS_${testSuffix}`,
+        type: await docType(`CANCEL_REQUIRED_STATUS_${testSuffix}`),
         status: 'REQUIRED',
         required: true,
       },
@@ -510,7 +528,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Cancel validated',
-        type: `CANCEL_VALIDATED_${testSuffix}`,
+        type: await docType(`CANCEL_VALIDATED_${testSuffix}`),
         status: 'VALIDATED',
         required: true,
       },
@@ -521,7 +539,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Cancel rejected',
-        type: `CANCEL_REJECTED_${testSuffix}`,
+        type: await docType(`CANCEL_REJECTED_${testSuffix}`),
         status: 'REJECTED',
         required: true,
       },
@@ -532,7 +550,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Cancel pending required',
-        type: `CANCEL_PENDING_REQUIRED_${testSuffix}`,
+        type: await docType(`CANCEL_PENDING_REQUIRED_${testSuffix}`),
         status: 'PENDING',
         required: true,
         submittedAt: new Date(),
@@ -551,7 +569,7 @@ describe('AppController (e2e)', () => {
         data: {
           studentId: student.id,
           name: 'Cancel pending required missing file',
-          type: `CANCEL_PENDING_REQUIRED_MISSING_${testSuffix}`,
+          type: await docType(`CANCEL_PENDING_REQUIRED_MISSING_${testSuffix}`),
           status: 'PENDING',
           required: true,
           submittedAt: new Date(),
@@ -569,7 +587,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Cancel pending free',
-        type: `CANCEL_PENDING_FREE_${testSuffix}`,
+        type: await docType(`CANCEL_PENDING_FREE_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -602,7 +620,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: otherStudent.id,
         name: 'Cancel other student',
-        type: `CANCEL_OTHER_STUDENT_${testSuffix}`,
+        type: await docType(`CANCEL_OTHER_STUDENT_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -773,7 +791,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Document telechargeable',
-        type: `DOWNLOAD_TEST_${testSuffix}`,
+        type: await docType(`DOWNLOAD_TEST_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -791,7 +809,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Document absent disque',
-        type: `DOWNLOAD_MISSING_FILE_${testSuffix}`,
+        type: await docType(`DOWNLOAD_MISSING_FILE_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -824,7 +842,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: otherStudent.id,
         name: 'Document autre etudiant',
-        type: `DOWNLOAD_OTHER_${testSuffix}`,
+        type: await docType(`DOWNLOAD_OTHER_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -994,7 +1012,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Admin validate document',
-        type: `ADMIN_VALIDATE_${testSuffix}`,
+        type: await docType(`ADMIN_VALIDATE_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -1012,7 +1030,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Admin reject document',
-        type: `ADMIN_REJECT_${testSuffix}`,
+        type: await docType(`ADMIN_REJECT_${testSuffix}`),
         status: 'PENDING',
         required: false,
         submittedAt: new Date(),
@@ -1030,7 +1048,7 @@ describe('AppController (e2e)', () => {
       data: {
         studentId: student.id,
         name: 'Admin already validated',
-        type: `ADMIN_ALREADY_VALIDATED_${testSuffix}`,
+        type: await docType(`ADMIN_ALREADY_VALIDATED_${testSuffix}`),
         status: 'VALIDATED',
         required: false,
       },
@@ -1276,6 +1294,9 @@ describe('AppController (e2e)', () => {
   });
 
   afterEach(async () => {
+    await prisma?.documentType.deleteMany({
+      where: { code: { in: testDocumentTypes.splice(0) } },
+    });
     await app?.close();
   });
 });

@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './common/security/csrf.guard';
+import { UploadsModule } from './common/uploads/uploads.module';
 import { StudentPortalModule } from './student-portal/student-portal.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { StudentPortalModule } from './student-portal/student-portal.module';
     // Quota global par IP ; les routes de connexion appliquent un quota plus strict.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     AuditModule,
+    UploadsModule,
     AdminModule,
     AuthModule,
     StudentPortalModule,

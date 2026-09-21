@@ -1,5 +1,3 @@
-import { existsSync, realpathSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
 import {
   ConflictException,
   Injectable,
@@ -8,7 +6,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { AuditService, type AuditActor } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { uploadRoot } from '../student-portal/upload.config';
+import { UploadedFilesService } from '../common/uploads/uploaded-files.service';
 import type {
   ListStudentsQueryDto,
   OptionalReviewCommentDto,
@@ -30,17 +28,12 @@ const studentMinimalSelect = {
 
 type ReviewDecision = 'VALIDATED' | 'REJECTED';
 
-function isInsideDirectory(filePath: string, directoryPath: string) {
-  return (
-    filePath === directoryPath || filePath.startsWith(`${directoryPath}${sep}`)
-  );
-}
-
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly files: UploadedFilesService,
   ) {}
 
   async listStudents({ search, page, pageSize }: ListStudentsQueryDto) {
@@ -87,44 +80,14 @@ export class AdminService {
 
   async downloadDocument(documentId: string) {
     const document = await this.prisma.studentDocument.findUnique({
-      where: {
-        id: documentId,
-      },
+      where: { id: documentId },
     });
 
-    if (
-      !document ||
-      !document.storagePath ||
-      !document.originalName ||
-      !document.mimeType
-    ) {
-      throw new NotFoundException('Document not found');
+    if (!document) {
+      throw new NotFoundException('Document introuvable');
     }
 
-    const rootPath = uploadRoot();
-
-    if (!existsSync(rootPath)) {
-      throw new NotFoundException('Document file not found');
-    }
-
-    const allowedRoot = realpathSync(rootPath);
-    const resolvedPath = resolve(process.cwd(), document.storagePath);
-
-    if (!existsSync(resolvedPath)) {
-      throw new NotFoundException('Document file not found');
-    }
-
-    const realFilePath = realpathSync(resolvedPath);
-
-    if (!isInsideDirectory(realFilePath, allowedRoot)) {
-      throw new NotFoundException('Document not found');
-    }
-
-    return {
-      absolutePath: realFilePath,
-      mimeType: document.mimeType,
-      originalName: document.originalName,
-    };
+    return this.files.resolveDownload(document);
   }
 
   validateDocument(
