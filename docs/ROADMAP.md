@@ -33,7 +33,7 @@ pnpm dev               # API :3000, web :5173
 | L05 | Maintenabilité API, e2e isolés | fait | voir git log |
 | L06 | Modèle métier et règles pures | fait | voir git log |
 | L07 | API renouvellement boursier | fait | voir git log |
-| L08 | Comptes candidats, mails, mot de passe oublié | à faire | |
+| L08 | Comptes candidats, mails, mot de passe oublié | fait | voir git log |
 | L09 | API candidature et instruction admin | à faire | |
 | L10 | Fondations front | à faire | |
 | L11 | Portail boursier | à faire | |

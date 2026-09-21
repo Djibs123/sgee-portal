@@ -90,6 +90,20 @@ class EnvironmentVariables {
   @IsString()
   DATA_ENCRYPTION_KEY = DEV_DATA_ENCRYPTION_KEY;
 
+  /** Serveur d'envoi, ex. smtps://user:pass@smtp.example.org:465. Absent en dev : e-mails affichés dans les logs. */
+  @IsOptional()
+  @IsString()
+  SMTP_URL?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_FROM = 'SGEE <no-reply@sgee.local>';
+
+  /** URL publique du portail, utilisée dans les liens des e-mails. */
+  @IsString()
+  @IsNotEmpty()
+  PUBLIC_APP_URL = 'http://localhost:5173';
+
   /** Par défaut : `debug` en dev, `info` en production, `silent` sous Jest. */
   @IsOptional()
   @IsIn(LOG_LEVELS)
@@ -181,6 +195,12 @@ export function validateEnv(source: NodeJS.ProcessEnv): AppEnv {
 
     if (config.DATA_ENCRYPTION_KEY === DEV_DATA_ENCRYPTION_KEY) {
       throw new Error('DATA_ENCRYPTION_KEY doit être définie en production');
+    }
+
+    if (!config.SMTP_URL) {
+      throw new Error(
+        'SMTP_URL est obligatoire en production (vérification des e-mails, mots de passe oubliés)',
+      );
     }
   }
 

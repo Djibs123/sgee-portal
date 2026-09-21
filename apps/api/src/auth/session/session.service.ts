@@ -15,8 +15,7 @@ export const SESSION_IDLE_TIMEOUT_MS: Record<SessionSubject, number> = {
 /** Évite une écriture en base à chaque requête. */
 const TOUCH_INTERVAL_MS = 60 * 1000;
 
-export type SessionSubjectRef =
-  { type: 'STUDENT'; id: string } | { type: 'ADMIN'; id: string };
+export type SessionSubjectRef = { type: SessionSubject; id: string };
 
 export type ClientMeta = {
   ip?: string | null;
@@ -29,10 +28,14 @@ export type ValidSession = {
   adminRole: AdminRole | null;
 };
 
+const SUBJECT_COLUMN = {
+  STUDENT: 'studentId',
+  ADMIN: 'adminUserId',
+  APPLICANT: 'applicantId',
+} as const satisfies Record<SessionSubject, string>;
+
 function subjectColumns(subject: SessionSubjectRef) {
-  return subject.type === 'STUDENT'
-    ? { studentId: subject.id }
-    : { adminUserId: subject.id };
+  return { [SUBJECT_COLUMN[subject.type]]: subject.id };
 }
 
 @Injectable()
@@ -77,7 +80,7 @@ export class SessionService {
     if (
       !session ||
       session.subjectType !== expectedType ||
-      (session.studentId ?? session.adminUserId) !== subjectId ||
+      session[SUBJECT_COLUMN[expectedType]] !== subjectId ||
       session.revokedAt ||
       session.expiresAt.getTime() <= now
     ) {

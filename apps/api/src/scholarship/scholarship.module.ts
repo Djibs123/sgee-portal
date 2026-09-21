@@ -5,6 +5,7 @@ import { StudentNotificationsController } from '../notifications/student-notific
 import { PrismaModule } from '../prisma/prisma.module';
 import { AdminCampaignsController } from './admin-campaigns.controller';
 import { CampaignsService } from './campaigns.service';
+import { PublicCampaignsController } from './public-campaigns.controller';
 import { RequestsService } from './requests.service';
 import { StudentRequestsController } from './student-requests.controller';
 
@@ -14,6 +15,7 @@ import { StudentRequestsController } from './student-requests.controller';
     StudentRequestsController,
     StudentNotificationsController,
     AdminCampaignsController,
+    PublicCampaignsController,
   ],
   providers: [CampaignsService, RequestsService],
   exports: [CampaignsService, RequestsService],

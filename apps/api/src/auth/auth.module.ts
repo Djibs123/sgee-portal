@@ -5,6 +5,8 @@ import { JWT_EXPIRES_IN, JWT_SECRET } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { PasswordResetController } from './password/password-reset.controller';
+import { PasswordResetService } from './password/password-reset.service';
 import { SessionModule } from './session/session.module';
 
 @Module({
@@ -18,8 +20,8 @@ import { SessionModule } from './session/session.module';
       },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
+  controllers: [AuthController, PasswordResetController],
+  providers: [AuthService, JwtAuthGuard, PasswordResetService],
   // SessionModule est ré-exporté : tout module qui utilise JwtAuthGuard en a besoin.
   exports: [AuthService, JwtAuthGuard, JwtModule, SessionModule],
 })

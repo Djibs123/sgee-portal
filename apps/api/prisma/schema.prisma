@@ -96,6 +96,11 @@ enum AcademicResult {
   FAILED
 }
 
+enum OneTimeTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 enum RequestStatus {
   DRAFT
   SUBMITTED
@@ -536,4 +541,20 @@ model StudentDocument {
   @@index([type])
   @@index([status])
   @@index([uploadedAt])
+}
+
+/// Jeton à usage unique (vérification d'e-mail, réinitialisation de mot de passe).
+/// Seule l'empreinte SHA-256 est stockée : une fuite de la base ne permet pas de l'utiliser.
+model OneTimeToken {
+  id          String              @id @default(uuid())
+  purpose     OneTimeTokenPurpose
+  subjectType SessionSubject
+  subjectId   String
+  tokenHash   String              @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([subjectType, subjectId, purpose])
+  @@index([expiresAt])
 }

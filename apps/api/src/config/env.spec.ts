@@ -53,6 +53,7 @@ describe('validateEnv', () => {
       JWT_SECRET: strong('a'),
       ADMIN_JWT_SECRET: strong('b'),
       DATA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+      SMTP_URL: 'smtps://user:secret@smtp.example.org:465',
       FRONTEND_ORIGIN: 'https://portail.sgee.sn/, https://admin.sgee.sn',
       TRUST_PROXY: '1',
       PORT: '8080',
