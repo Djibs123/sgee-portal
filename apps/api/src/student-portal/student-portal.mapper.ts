@@ -1,8 +1,6 @@
 import type {
   CursusEntry,
   Payment,
-  Rib,
-  RibStatus,
   Student,
   StudentDocument,
   StudentDocumentStatus,
@@ -27,12 +25,6 @@ const formatCfaAmount = (value: number | null | undefined) =>
 
 const documentStatusLabels: Record<StudentDocumentStatus, string> = {
   REQUIRED: 'Requis',
-  PENDING: 'En attente de validation',
-  VALIDATED: 'Valide',
-  REJECTED: 'Refuse',
-};
-
-const ribStatusLabels: Record<RibStatus, string> = {
   PENDING: 'En attente de validation',
   VALIDATED: 'Valide',
   REJECTED: 'Refuse',
@@ -84,25 +76,6 @@ export function mapStudentProfile(student: Student) {
     allocationBase,
     totalVerse: formatDecimalAmount(student.totalPaidAmount, currency),
     progression: student.progressPercent ?? 0,
-  };
-}
-
-export function mapRib(rib: Rib) {
-  return {
-    studentId: rib.studentId,
-    banque: rib.bankName,
-    titulaire: rib.holderName,
-    iban: rib.iban,
-    bic: rib.bic,
-    adresse: rib.address,
-    telephone: rib.phone,
-    email: rib.email,
-    status: rib.status,
-    statusLabel: ribStatusLabels[rib.status],
-    ibanMasked: rib.ibanMasked,
-    reviewedAt: rib.reviewedAt?.toISOString() ?? null,
-    reviewComment: rib.reviewComment,
-    updatedAt: rib.updatedAt.toISOString(),
   };
 }
 

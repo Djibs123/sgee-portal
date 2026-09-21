@@ -29,7 +29,7 @@ pnpm dev               # API :3000, web :5173
 | L01 | Sécurité critique API | fait | voir git log |
 | L02 | Sessions, login durci, RBAC, audit | fait | voir git log |
 | L03 | Uploads et documents | fait | voir git log |
-| L04 | RIB versionné, IBAN chiffré | à faire | |
+| L04 | RIB versionné, IBAN chiffré | fait | voir git log |
 | L05 | Maintenabilité API, e2e isolés | à faire | |
 | L06 | Modèle métier et règles pures | à faire | |
 | L07 | API renouvellement boursier | à faire | |
@@ -67,6 +67,9 @@ Bug corrigé au passage : les noms de fichiers accentués étaient décodés en 
 ### L04 — RIB versionné et IBAN chiffré
 Fichiers : `schema.prisma` (Rib), `student-portal/*` (RIB), `admin/*` (RIB), nouveau `src/common/crypto/*`, `prisma/scripts/encrypt-existing-ibans.ts`, `apps/web/src/pages/RibPage.tsx`, `AdminDashboardPage.tsx`, `lib/api.ts`.
 Fin : RIB validé conservé jusqu'à validation du nouveau ; IBAN chiffré AES-256-GCM ; empreinte HMAC et alerte IBAN partagé ; `@IsIBAN()` ; révélation admin auditée.
+Réalisé : module `src/rib/` (`RibService` : `getForStudent`, `submit`, `cancelPending`, `listPending` paginé, `review`, `revealIban` ; `rib.mapper.ts` ; `SubmitRibDto`) ; `src/common/crypto/` (`FieldCipher` AES-256-GCM avec sous-clés HKDF, `iban.ts` : `normalizeIban`, `maskIban`, `protectIban`, `isValidIban`) ; `DATA_ENCRYPTION_KEY` validée au démarrage (clé de dev par défaut, obligatoire en prod) ; migration manuelle avec contraintes CHECK sur les slots ; `prisma/scripts/encrypt-existing-ibans.ts` exécuté sur la base de dev ; routes `GET /api/student/rib` → `{ active, pending, lastRejected }`, `PATCH /api/student/rib`, `DELETE /api/student/rib/pending`, `GET /api/admin/ribs/pending?page&pageSize`, `GET /api/admin/ribs/:id/iban` ; e2e `test/rib.e2e-spec.ts` ; `RibPage` et file RIB admin adaptées.
+Décision utilisateur : les IBAN sont internationaux (France et autres pays d'études), pas sénégalais. Validation = registre ISO 13616 de SWIFT via class-validator. Limite connue : pas d'IBAN au Canada ni aux États-Unis.
+Dette : supprimer la colonne `Rib.iban` quand toutes les bases auront été reprises.
 
 ### L05 — Maintenabilité API
 Fichiers : `schema.prisma` (générateur), imports Prisma, `main.ts`, `app.module.ts`, `prisma/seed.ts`, `test/*`, nouveaux `src/health/*`, `src/common/filters/*`.

@@ -2,31 +2,44 @@ import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
 import {
+  cancelPendingStudentRib,
+  getApiErrorMessage,
   getStudentRib,
   updateStudentRib,
   type StudentRib,
+  type StudentRibState,
   type UpdateStudentRibPayload,
 } from '../lib/api'
 
 const emptyForm: UpdateStudentRibPayload = {
   banque: '',
   iban: '',
+  bic: '',
   adresse: '',
   telephone: '',
   email: '',
 }
 
-function toForm(rib: StudentRib): UpdateStudentRibPayload {
-  return {
-    banque: rib.banque,
-    iban: rib.iban,
-    adresse: rib.adresse,
-    telephone: rib.telephone,
-    email: rib.email,
-  }
+const dateFormatter = new Intl.DateTimeFormat('fr-FR')
+
+function formatDate(value: string | null) {
+  return value ? dateFormatter.format(new Date(value)) : '—'
 }
 
-function getRibStatusClass(rib: StudentRib) {
+/** Pré-remplit les coordonnées de contact, jamais l'IBAN (donnée sensible). */
+function toForm(rib: StudentRib | null): UpdateStudentRibPayload {
+  return rib
+    ? { ...emptyForm, banque: rib.banque, adresse: rib.adresse, telephone: rib.telephone, email: rib.email }
+    : emptyForm
+}
+
+function withoutEmptyFields(form: UpdateStudentRibPayload): UpdateStudentRibPayload {
+  return Object.fromEntries(
+    Object.entries(form).filter(([, value]) => typeof value === 'string' && value.trim() !== ''),
+  ) as UpdateStudentRibPayload
+}
+
+function statusClass(rib: StudentRib) {
   switch (rib.status) {
     case 'PENDING':
       return 'pending'
@@ -37,225 +50,216 @@ function getRibStatusClass(rib: StudentRib) {
   }
 }
 
+function RibDetails({ rib }: { rib: StudentRib }) {
+  return (
+    <div className="info-grid">
+      <div className="info-field"><label>Banque</label><p style={{ fontWeight: 700 }}>{rib.banque}</p></div>
+      <div className="info-field"><label>Titulaire</label><p>{rib.titulaire}</p></div>
+      <div className="info-field"><label>IBAN</label><p className="mono">{rib.ibanMasked}</p></div>
+      <div className="info-field"><label>BIC</label><p className="mono">{rib.bic || '—'}</p></div>
+      <div className="info-field">
+        <label>Statut</label>
+        <p><span className={`status-pill ${statusClass(rib)}`}>{rib.statusLabel}</span></p>
+      </div>
+      <div className="info-field">
+        <label>{rib.status === 'VALIDATED' ? 'Validé le' : 'Soumis le'}</label>
+        <p>{formatDate(rib.status === 'VALIDATED' ? rib.reviewedAt : rib.submittedAt)}</p>
+      </div>
+    </div>
+  )
+}
+
 export function RibPage() {
-  const [rib, setRib] = useState<StudentRib | null>(null)
+  const [state, setState] = useState<StudentRibState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [copied, setCopied] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<UpdateStudentRibPayload>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [saveSuccess, setSaveSuccess] = useState('')
+  const [feedback, setFeedback] = useState('')
 
   useEffect(() => {
     let ignore = false
 
-    async function loadRib() {
-      try {
-        setLoading(true)
-        setError(null)
-        const nextRib = await getStudentRib()
-
+    getStudentRib()
+      .then((nextState) => {
         if (!ignore) {
-          setRib(nextRib)
-          setForm(toForm(nextRib))
+          setState(nextState)
         }
-      } catch (requestError) {
+      })
+      .catch((requestError: unknown) => {
         if (!ignore) {
-          setError(
-            requestError instanceof Error
-              ? requestError
-              : new Error('RIB unavailable'),
-          )
+          setError(requestError instanceof Error ? requestError : new Error('RIB indisponible'))
         }
-      } finally {
+      })
+      .finally(() => {
         if (!ignore) {
           setLoading(false)
         }
-      }
-    }
-
-    loadRib()
+      })
 
     return () => {
       ignore = true
     }
   }, [])
 
-  const copyIban = () => {
-    if (!rib) {
-      return
-    }
-
-    navigator.clipboard.writeText(rib.iban.replace(/\s/g, ''))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const startEditing = () => {
-    if (rib) {
-      setForm(toForm(rib))
-    }
-
+    setForm(toForm(state?.pending ?? state?.active ?? null))
     setSaveError('')
-    setSaveSuccess('')
+    setFeedback('')
     setEditing(true)
-  }
-
-  const cancelEditing = () => {
-    if (rib) {
-      setForm(toForm(rib))
-    }
-
-    setEditing(false)
-    setSaveError('')
   }
 
   const updateField =
     (field: keyof UpdateStudentRibPayload) =>
     (event: ChangeEvent<HTMLInputElement>) => {
-      setForm((current) => ({
-        ...current,
-        [field]: event.target.value,
-      }))
+      setForm((current) => ({ ...current, [field]: event.target.value }))
     }
 
   const saveRib = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSaving(true)
     setSaveError('')
-    setSaveSuccess('')
 
     try {
-      const updatedRib = await updateStudentRib(form)
-
-      setRib(updatedRib)
-      setForm(toForm(updatedRib))
+      setState(await updateStudentRib(withoutEmptyFields(form)))
       setEditing(false)
-      setSaveSuccess('Votre RIB a ete soumis et est en attente de validation.')
-    } catch {
-      setSaveError('Impossible de mettre a jour le RIB')
+      setFeedback('Votre demande de modification est enregistrée. Votre RIB actuel reste utilisé jusqu’à sa validation.')
+    } catch (reason) {
+      setSaveError(getApiErrorMessage(reason, 'Impossible d’enregistrer le RIB'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const cancelPending = async () => {
+    if (!window.confirm('Annuler votre demande de modification de RIB ?')) {
+      return
+    }
+
+    try {
+      setState(await cancelPendingStudentRib())
+      setFeedback('Votre demande de modification a été annulée.')
+    } catch (reason) {
+      setSaveError(getApiErrorMessage(reason, 'Impossible d’annuler la demande'))
     }
   }
 
   return (
     <div>
       <div className="page-header">
-        <Breadcrumb label="Coordonnees RIB" />
-        <h1>Releve d'Identite Bancaire</h1>
-        <p>Coordonnees bancaires enregistrees pour les versements</p>
+        <Breadcrumb label="Coordonnées RIB" />
+        <h1>Relevé d’identité bancaire</h1>
+        <p>Compte sur lequel vos allocations sont versées</p>
       </div>
 
       <InlineState loading={loading} error={error} />
 
-      {rib && (
+      {state && (
         <>
           <div className="alert info" style={{ marginBottom: '16px' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
-            </svg>
             <div>
-              <span className="alert-title">Informations sensibles</span>
-              Les modifications de coordonnees bancaires sont enregistrees sur votre dossier.
+              <span className="alert-title">Changement de RIB contrôlé</span>
+              Toute modification est vérifiée par le SGEE. Vos versements restent effectués sur le RIB actif tant que la nouvelle demande n’est pas validée.
             </div>
           </div>
 
-          {saveSuccess && (
-            <div className="alert success">
-              <span className="alert-title">{saveSuccess}</span>
+          <div role="status" aria-live="polite">
+            {feedback && (
+              <div className="alert success" style={{ marginBottom: '14px' }}>
+                <span className="alert-title">{feedback}</span>
+              </div>
+            )}
+          </div>
+
+          {state.lastRejected && !state.pending && (
+            <div className="alert warning" style={{ marginBottom: '14px' }}>
+              <div>
+                <span className="alert-title">Dernière demande refusée</span>
+                {state.lastRejected.reviewComment ?? 'Aucun motif précisé.'}
+              </div>
             </div>
           )}
 
-          <div className="card" style={{ marginBottom: '14px' }}>
+          <section className="card" style={{ marginBottom: '14px' }} aria-labelledby="rib-active-title">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
-              <div className="info-section-title" style={{ marginBottom: 0, flex: 1 }}>Etablissement Bancaire</div>
+              <h2 id="rib-active-title" className="info-section-title" style={{ marginBottom: 0, flex: 1 }}>RIB actif</h2>
               {!editing && (
-                <button className="copy-btn" onClick={startEditing}>
-                  Modifier mon RIB
+                <button className="copy-btn" type="button" onClick={startEditing}>
+                  {state.pending ? 'Corriger ma demande' : 'Modifier mon RIB'}
                 </button>
               )}
             </div>
-            <div className="info-grid" style={{ marginBottom: '14px' }}>
-              <div className="info-field">
-                <label>Nom de la Banque</label>
-                <p style={{ fontWeight: 700 }}>{rib.banque}</p>
-              </div>
-              <div className="info-field">
-                <label>BIC</label>
-                <p className="mono">{rib.bic}</p>
-              </div>
-              <div className="info-field">
-                <label>Statut</label>
-                <p><span className={`status-pill ${getRibStatusClass(rib)}`}>{rib.statusLabel}</span></p>
-              </div>
-            </div>
-            {rib.status === 'REJECTED' && rib.reviewComment && (
-              <div className="alert warning" style={{ marginBottom: '14px' }}>
-                <span className="alert-title">Motif du refus: {rib.reviewComment}</span>
-              </div>
-            )}
-            <div className="info-field">
-              <label>Numero IBAN</label>
-              <div className="iban-display">
-                <span>{rib.iban}</span>
-                <button className="copy-btn" onClick={copyIban}>
-                  {copied ? 'Copie' : 'Copier'}
+            {state.active ? <RibDetails rib={state.active} /> : <p>Aucun RIB validé pour le moment.</p>}
+          </section>
+
+          {state.pending && (
+            <section className="card" style={{ marginBottom: '14px' }} aria-labelledby="rib-pending-title">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
+                <h2 id="rib-pending-title" className="info-section-title" style={{ marginBottom: 0, flex: 1 }}>Modification en attente</h2>
+                <button className="copy-btn" type="button" onClick={() => void cancelPending()}>
+                  Annuler la demande
                 </button>
               </div>
-            </div>
-          </div>
+              <RibDetails rib={state.pending} />
+            </section>
+          )}
 
           {editing && (
-            <form className="card" onSubmit={saveRib} style={{ marginBottom: '14px' }}>
-              <div className="info-section-title">Modifier mon RIB</div>
+            <form className="card" onSubmit={saveRib} style={{ marginBottom: '14px' }} noValidate>
+              <h2 className="info-section-title">Nouveau RIB</h2>
               <div className="info-grid">
                 <label className="info-field">
                   <span>Banque</span>
-                  <input value={form.banque} onChange={updateField('banque')} required maxLength={120} />
+                  <input value={form.banque} onChange={updateField('banque')} required maxLength={120} autoComplete="organization" />
                 </label>
                 <label className="info-field">
-                  <span>IBAN</span>
-                  <input value={form.iban} onChange={updateField('iban')} required maxLength={34} />
+                  <span>IBAN international</span>
+                  <input
+                    value={form.iban}
+                    onChange={updateField('iban')}
+                    required
+                    maxLength={42}
+                    placeholder="FR76 3000 6000 0112 3456 7890 189"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-describedby="iban-help"
+                  />
+                  <small id="iban-help">IBAN du compte dans votre pays d’études, au nom du boursier.</small>
+                </label>
+                <label className="info-field">
+                  <span>BIC (facultatif)</span>
+                  <input value={form.bic} onChange={updateField('bic')} maxLength={11} autoComplete="off" spellCheck={false} />
                 </label>
                 <label className="info-field">
                   <span>Adresse</span>
-                  <input value={form.adresse} onChange={updateField('adresse')} maxLength={255} />
+                  <input value={form.adresse} onChange={updateField('adresse')} maxLength={255} autoComplete="street-address" />
                 </label>
                 <label className="info-field">
-                  <span>Telephone</span>
-                  <input value={form.telephone} onChange={updateField('telephone')} maxLength={30} />
+                  <span>Téléphone</span>
+                  <input type="tel" value={form.telephone} onChange={updateField('telephone')} maxLength={30} autoComplete="tel" />
                 </label>
                 <label className="info-field">
-                  <span>Email</span>
-                  <input type="email" value={form.email} onChange={updateField('email')} maxLength={120} />
+                  <span>E-mail</span>
+                  <input type="email" value={form.email} onChange={updateField('email')} maxLength={120} autoComplete="email" />
                 </label>
               </div>
 
-              {saveError && <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginTop: '12px' }}>{saveError}</p>}
+              {saveError && (
+                <p role="alert" style={{ color: 'var(--red-sn)', fontSize: '13px', marginTop: '12px' }}>{saveError}</p>
+              )}
 
               <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
                 <button className="copy-btn" type="submit" disabled={saving}>
-                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                  {saving ? 'Envoi…' : 'Soumettre pour validation'}
                 </button>
-                <button className="copy-btn" type="button" onClick={cancelEditing} disabled={saving}>
+                <button className="copy-btn" type="button" onClick={() => setEditing(false)} disabled={saving}>
                   Annuler
                 </button>
               </div>
             </form>
           )}
-
-          <div className="card">
-            <div className="info-section-title">Coordonnees du Titulaire</div>
-            <div className="info-grid">
-              <div className="info-field"><label>Titulaire</label><p>{rib.titulaire}</p></div>
-              <div className="info-field"><label>Adresse</label><p>{rib.adresse}</p></div>
-              <div className="info-field"><label>Telephone</label><p>{rib.telephone}</p></div>
-              <div className="info-field"><label>Email</label><p style={{ fontSize: '13.5px' }}>{rib.email}</p></div>
-            </div>
-          </div>
         </>
       )}
     </div>

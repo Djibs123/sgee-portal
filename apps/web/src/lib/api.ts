@@ -57,21 +57,28 @@ export type StudentProfile = {
   progression: number
 }
 
+/** Vue d'un RIB côté étudiant : l'IBAN n'est jamais renvoyé en clair. */
 export type StudentRib = {
-  studentId: string
+  id: string
   banque: string
   titulaire: string
-  iban: string
   bic: string
+  ibanMasked: string
   adresse: string
   telephone: string
   email: string
   status: StudentRibStatus
   statusLabel: string
-  ibanMasked: string
+  submittedAt: string | null
   reviewedAt: string | null
-  reviewComment?: string | null
-  updatedAt: string | null
+  reviewComment: string | null
+}
+
+/** RIB actif (versements), demande de modification en attente, dernier refus. */
+export type StudentRibState = {
+  active: StudentRib | null
+  pending: StudentRib | null
+  lastRejected: StudentRib | null
 }
 
 export type StudentCursus = {
@@ -134,6 +141,7 @@ export type LoginResponse = {
 export type UpdateStudentRibPayload = {
   banque: string
   iban: string
+  bic?: string
   adresse?: string
   telephone?: string
   email?: string
@@ -192,17 +200,18 @@ export type AdminPendingRib = {
   id: string
   bankName: string
   holderName: string
-  iban: string
   ibanMasked: string
+  ibanLast4: string | null
   bic: string
   status: StudentRibStatus
   statusLabel: string
   submittedAt: string | null
-  submittedAtLabel: string
   reviewedAt: string | null
-  reviewedAtLabel: string
   reviewComment: string | null
   student: AdminStudentMinimal
+  activeRib: { bankName: string; ibanMasked: string; validatedAt: string | null } | null
+  /** Autres boursiers utilisant le même IBAN : signal de fraude possible. */
+  sharedIbanCount: number
 }
 
 export type AdminPendingRibsResponse = {
@@ -236,6 +245,25 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return responseBody as T
+}
+
+/** Message d'erreur lisible renvoyé par l'API (Nest), sinon le message par défaut. */
+export function getApiErrorMessage(reason: unknown, fallback: string) {
+  if (!(reason instanceof ApiError) || typeof reason.responseBody !== 'object' || reason.responseBody === null) {
+    return fallback
+  }
+
+  const message = (reason.responseBody as { message?: unknown }).message
+
+  if (typeof message === 'string' && message.trim() !== '') {
+    return message
+  }
+
+  if (Array.isArray(message) && typeof message[0] === 'string') {
+    return message.join('. ')
+  }
+
+  return fallback
 }
 
 async function readResponseBody(response: Response): Promise<unknown> {
@@ -296,19 +324,25 @@ export function getStudentProfile(): Promise<StudentProfile> {
   return requestJson<StudentProfile>('/student/profile')
 }
 
-export function getStudentRib(): Promise<StudentRib> {
-  return requestJson<StudentRib>('/student/rib')
+export function getStudentRib(): Promise<StudentRibState> {
+  return requestJson<StudentRibState>('/student/rib')
 }
 
 export function updateStudentRib(
   payload: UpdateStudentRibPayload,
-): Promise<StudentRib> {
-  return requestJson<StudentRib>('/student/rib', {
+): Promise<StudentRibState> {
+  return requestJson<StudentRibState>('/student/rib', {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
+  })
+}
+
+export function cancelPendingStudentRib(): Promise<StudentRibState> {
+  return requestJson<StudentRibState>('/student/rib/pending', {
+    method: 'DELETE',
   })
 }
 
@@ -471,6 +505,11 @@ export async function downloadAdminDocument(
 
 export function getAdminPendingRibs(): Promise<AdminPendingRibsResponse> {
   return requestJson<AdminPendingRibsResponse>('/admin/ribs/pending')
+}
+
+/** IBAN complet d'un RIB à instruire : chaque consultation est journalisée côté API. */
+export function revealAdminRibIban(ribId: string): Promise<{ iban: string }> {
+  return requestJson<{ iban: string }>(`/admin/ribs/${ribId}/iban`)
 }
 
 export function validateAdminRib(ribId: string): Promise<AdminPendingRib> {

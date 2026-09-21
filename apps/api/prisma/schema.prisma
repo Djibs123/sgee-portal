@@ -77,7 +77,7 @@ model Student {
   lastProcessingDate      DateTime?
 
   payments  Payment[]
-  rib       Rib?
+  ribs      Rib[]
   cursus    CursusEntry[]
   documents StudentDocument[]
   sessions  Session[]
@@ -163,28 +163,41 @@ model Payment {
   @@index([paymentDate])
 }
 
+/// Historique des RIB d'un étudiant. Au plus un RIB actif (validé, utilisé pour les
+/// versements) et un RIB en attente : garanti par les index uniques sur les slots,
+/// qui valent `true` ou `null` (plusieurs NULL sont permis en PostgreSQL).
 model Rib {
-  id            String    @id @default(uuid())
-  studentId     String    @unique
-  bankName      String
-  holderName    String
-  iban          String
-  ibanMasked    String
-  bic           String
-  address       String
-  phone         String
-  email         String
-  status        RibStatus @default(PENDING)
-  submittedAt   DateTime?
-  reviewedAt    DateTime?
-  reviewComment String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  studentId       String
+  activeSlot      Boolean?
+  pendingSlot     Boolean?
+  supersededAt    DateTime?
+  bankName        String
+  holderName      String
+  /// Ancienne colonne en clair, vidée par `prisma/scripts/encrypt-existing-ibans.ts`.
+  iban            String?
+  ibanCiphertext  String?
+  ibanFingerprint String?
+  ibanLast4       String?
+  ibanMasked      String
+  bic             String
+  address         String
+  phone           String
+  email           String
+  status          RibStatus @default(PENDING)
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewComment   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@unique([studentId, activeSlot])
+  @@unique([studentId, pendingSlot])
   @@index([studentId])
   @@index([status])
+  @@index([ibanFingerprint])
 }
 
 model CursusEntry {

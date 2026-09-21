@@ -30,6 +30,20 @@ describe('validateEnv', () => {
         ADMIN_JWT_SECRET: strong('a'),
       }),
     ).toThrow(/différents/);
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'production',
+        JWT_SECRET: strong('a'),
+        ADMIN_JWT_SECRET: strong('b'),
+      }),
+    ).toThrow(/DATA_ENCRYPTION_KEY/);
+  });
+
+  it('refuse une clé de chiffrement de mauvaise taille', () => {
+    expect(() =>
+      validateEnv({ ...base, DATA_ENCRYPTION_KEY: 'dHJvcC1jb3VydGU=' }),
+    ).toThrow(/32 octets/);
   });
 
   it('accepte une configuration de production complète', () => {
@@ -38,6 +52,7 @@ describe('validateEnv', () => {
       NODE_ENV: 'production',
       JWT_SECRET: strong('a'),
       ADMIN_JWT_SECRET: strong('b'),
+      DATA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
       FRONTEND_ORIGIN: 'https://portail.sgee.sn/, https://admin.sgee.sn',
       TRUST_PROXY: '1',
       PORT: '8080',

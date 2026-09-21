@@ -153,7 +153,7 @@ describe('Sessions, verrouillage et rôles (e2e)', () => {
         studentId: student.id,
         bankName: 'Banque Audit',
         holderName: 'Session AUDIT',
-        iban: 'FR7630004000031234567890143',
+        pendingSlot: true,
         ibanMasked: 'FR76 **** 0143',
         bic: 'BNPAFRPP',
         address: 'Dakar',

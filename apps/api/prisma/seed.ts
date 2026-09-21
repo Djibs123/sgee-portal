@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { protectIban } from '../src/common/crypto/iban';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -86,15 +87,15 @@ async function main() {
     },
   });
 
-  await prisma.rib.upsert({
-    where: {
+  // RIB actif validé, IBAN chiffré (jamais stocké en clair).
+  await prisma.rib.deleteMany({ where: { studentId: student.id } });
+  await prisma.rib.create({
+    data: {
       studentId: student.id,
-    },
-    update: {
+      activeSlot: true,
       bankName: 'BNP PARIBAS',
       holderName: `${student.firstName} ${student.lastName}`,
-      iban: 'FR76 3000 4004 2600 0004 4603 285',
-      ibanMasked: 'FR76 **** **** **** **** **** 3285',
+      ...protectIban('FR76 3000 4000 0312 3456 7890 143'),
       bic: 'BNPAFRPPXXX',
       address: '26 RUE DE SAURUP',
       phone: '07 44 24 22 37',
@@ -102,22 +103,6 @@ async function main() {
       status: 'VALIDATED',
       submittedAt: new Date('2024-12-21'),
       reviewedAt: new Date('2024-12-22'),
-      reviewComment: null,
-    },
-    create: {
-      studentId: student.id,
-      bankName: 'BNP PARIBAS',
-      holderName: `${student.firstName} ${student.lastName}`,
-      iban: 'FR76 3000 4004 2600 0004 4603 285',
-      ibanMasked: 'FR76 **** **** **** **** **** 3285',
-      bic: 'BNPAFRPPXXX',
-      address: '26 RUE DE SAURUP',
-      phone: '07 44 24 22 37',
-      email: student.email,
-      status: 'VALIDATED',
-      submittedAt: new Date('2024-12-21'),
-      reviewedAt: new Date('2024-12-22'),
-      reviewComment: null,
     },
   });
 

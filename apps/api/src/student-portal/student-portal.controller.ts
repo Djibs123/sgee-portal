@@ -15,17 +15,26 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import type { AuthTokenPayload } from '../auth/auth.types';
-import { CurrentStudent } from '../auth/current-student.decorator';
+import type { AuditActor } from '../audit/audit.service';
+import {
+  CurrentStudent,
+  StudentActor,
+} from '../auth/current-student.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { sendFileDownload } from '../common/http/file-download';
 import { documentUploadOptions } from '../common/uploads/upload.options';
-import { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
+import { SubmitRibDto } from '../rib/rib.dto';
+import { RibService } from '../rib/rib.service';
+import { UploadDocumentDto } from './student-portal.dto';
 import { StudentPortalService } from './student-portal.service';
 
 @Controller('student')
 @UseGuards(JwtAuthGuard)
 export class StudentPortalController {
-  constructor(private readonly studentPortalService: StudentPortalService) {}
+  constructor(
+    private readonly studentPortalService: StudentPortalService,
+    private readonly ribService: RibService,
+  ) {}
 
   @Get('profile')
   getProfile(@CurrentStudent() student: AuthTokenPayload) {
@@ -34,15 +43,25 @@ export class StudentPortalController {
 
   @Get('rib')
   getRib(@CurrentStudent() student: AuthTokenPayload) {
-    return this.studentPortalService.getRib(student.studentId);
+    return this.ribService.getForStudent(student.studentId);
   }
 
+  /** Soumet un nouveau RIB : le RIB actif reste utilisé jusqu'à validation. */
   @Patch('rib')
-  updateRib(
+  submitRib(
     @CurrentStudent() student: AuthTokenPayload,
-    @Body() updateRibDto: UpdateRibDto,
+    @StudentActor() actor: AuditActor,
+    @Body() body: SubmitRibDto,
   ) {
-    return this.studentPortalService.updateRib(student.studentId, updateRibDto);
+    return this.ribService.submit(student.studentId, body, actor);
+  }
+
+  @Delete('rib/pending')
+  cancelPendingRib(
+    @CurrentStudent() student: AuthTokenPayload,
+    @StudentActor() actor: AuditActor,
+  ) {
+    return this.ribService.cancelPending(student.studentId, actor);
   }
 
   @Get('cursus')

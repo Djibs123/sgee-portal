@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -17,10 +18,12 @@ import { AuditService, type AuditActor } from '../audit/audit.service';
 import { sendFileDownload } from '../common/http/file-download';
 import {
   ListAuditLogsQueryDto,
+  PaginationQueryDto,
   ListStudentsQueryDto,
   OptionalReviewCommentDto,
   RejectDto,
 } from './admin.dto';
+import { RibService } from '../rib/rib.service';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -29,6 +32,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly audit: AuditService,
+    private readonly ribs: RibService,
   ) {}
 
   @Get('students')
@@ -76,8 +80,18 @@ export class AdminController {
   }
 
   @Get('ribs/pending')
-  getPendingRibs() {
-    return this.adminService.getPendingRibs();
+  getPendingRibs(@Query() query: PaginationQueryDto) {
+    return this.ribs.listPending(query.page, query.pageSize);
+  }
+
+  /** IBAN complet pour vérification : consultation journalisée, jamais mise en cache. */
+  @Get('ribs/:ribId/iban')
+  @Header('Cache-Control', 'no-store')
+  revealIban(
+    @Param('ribId', ParseUUIDPipe) ribId: string,
+    @AdminActor() actor: AuditActor,
+  ) {
+    return this.ribs.revealIban(ribId, actor);
   }
 
   @Patch('ribs/:ribId/validate')
@@ -86,7 +100,7 @@ export class AdminController {
     @Body() body: OptionalReviewCommentDto,
     @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.validateRib(ribId, body, actor);
+    return this.ribs.review(ribId, 'VALIDATED', body.reviewComment, actor);
   }
 
   @Patch('ribs/:ribId/reject')
@@ -95,6 +109,6 @@ export class AdminController {
     @Body() body: RejectDto,
     @AdminActor() actor: AuditActor,
   ) {
-    return this.adminService.rejectRib(ribId, body, actor);
+    return this.ribs.review(ribId, 'REJECTED', body.reviewComment, actor);
   }
 }

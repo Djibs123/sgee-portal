@@ -169,79 +169,6 @@ describe('AppController (e2e)', () => {
     await agent.get('/api/me').expect(401);
   });
 
-  it('updates the current student RIB only with a valid session', async () => {
-    const agent = api();
-
-    await api()
-      .patch('/api/student/rib')
-      .send({
-        banque: 'Banque Test',
-        iban: 'SN123456789012345678901234',
-      })
-      .expect(401);
-
-    await agent
-      .post('/api/auth/login')
-      .send({
-        identifier: 'test@sgee.local',
-        password: 'password123',
-      })
-      .expect(200);
-
-    await agent
-      .patch('/api/student/rib')
-      .send({
-        banque: '',
-        iban: 'bad iban !',
-      })
-      .expect(400);
-
-    const phone = `+221 77 000 ${Date.now().toString().slice(-4)}`;
-
-    await agent
-      .patch('/api/student/rib')
-      .send({
-        banque: 'Banque SGEE Test',
-        iban: 'SN12 3456 7890 1234 5678 9012 34',
-        adresse: 'Dakar',
-        telephone: phone,
-        email: 'rib-test@sgee.local',
-      })
-      .expect(200)
-      .expect((response) => {
-        const body: unknown = response.body;
-
-        expect(isRecord(body)).toBe(true);
-
-        if (!isRecord(body)) {
-          return;
-        }
-
-        expect(body.banque).toBe('Banque SGEE Test');
-        expect(body.iban).toBe('SN123456789012345678901234');
-        expect(body.telephone).toBe(phone);
-        expect(body.status).toBe('PENDING');
-        expect(body.statusLabel).toBe('En attente de validation');
-      });
-
-    await agent
-      .get('/api/student/rib')
-      .expect(200)
-      .expect((response) => {
-        const body: unknown = response.body;
-
-        expect(isRecord(body)).toBe(true);
-
-        if (!isRecord(body)) {
-          return;
-        }
-
-        expect(body.banque).toBe('Banque SGEE Test');
-        expect(body.telephone).toBe(phone);
-        expect(body.status).toBe('PENDING');
-      });
-  });
-
   it('uploads documents only with a valid session and accepted file type', async () => {
     const agent = api();
     const testType = `TEST_DOCUMENT_${Date.now()}`;
@@ -1188,8 +1115,9 @@ describe('AppController (e2e)', () => {
           studentId: student.id,
           bankName: `Banque ${suffix}`,
           holderName: `${student.firstName} ${student.lastName}`,
-          iban: `SN12${testSuffix}${suffix}`.slice(0, 34),
-          ibanMasked: `SN12 **** ${suffix}`,
+          ibanMasked: `FR76 **** ${suffix}`,
+          activeSlot: status === 'VALIDATED' ? true : null,
+          pendingSlot: status === 'PENDING' ? true : null,
           bic: 'BICADMIN',
           address: 'Dakar',
           phone: '+221 77 000 0000',

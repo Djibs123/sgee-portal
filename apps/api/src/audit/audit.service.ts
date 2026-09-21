@@ -10,8 +10,11 @@ export type AuditAction =
   | 'AUTH_LOGOUT'
   | 'DOCUMENT_VALIDATED'
   | 'DOCUMENT_REJECTED'
+  | 'RIB_SUBMITTED'
+  | 'RIB_SUBMISSION_CANCELLED'
   | 'RIB_VALIDATED'
-  | 'RIB_REJECTED';
+  | 'RIB_REJECTED'
+  | 'RIB_IBAN_REVEALED';
 
 export type AuditActor = {
   type: AuditActorType;

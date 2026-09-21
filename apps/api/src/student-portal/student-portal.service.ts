@@ -10,25 +10,16 @@ import {
   type StoredUpload,
 } from '../common/uploads/uploaded-files.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { UpdateRibDto, UploadDocumentDto } from './student-portal.dto';
+import type { UploadDocumentDto } from './student-portal.dto';
 import {
   mapCursusEntry,
   mapPayment,
-  mapRib,
   mapStudentDocument,
   mapStudentProfile,
 } from './student-portal.mapper';
 
 /** Seuls les documents attendus ou refusés peuvent recevoir un nouveau fichier. */
 const REPLACEABLE_STATUSES: StudentDocumentStatus[] = ['REQUIRED', 'REJECTED'];
-
-const maskIban = (iban: string) => {
-  if (iban.length <= 8) {
-    return iban;
-  }
-
-  return `${iban.slice(0, 4)} ${'*'.repeat(Math.max(iban.length - 8, 0))} ${iban.slice(-4)}`;
-};
 
 function submissionData(stored: StoredUpload) {
   const now = new Date();
@@ -66,78 +57,6 @@ export class StudentPortalService {
     }
 
     return mapStudentProfile(student);
-  }
-
-  async getRib(studentId: string) {
-    const rib = await this.prisma.rib.findUnique({
-      where: {
-        studentId,
-      },
-    });
-
-    if (!rib) {
-      throw new NotFoundException('Student RIB not found');
-    }
-
-    return mapRib(rib);
-  }
-
-  async updateRib(studentId: string, data: UpdateRibDto) {
-    const submittedAt = new Date();
-    const student = await this.prisma.student.findUnique({
-      where: {
-        id: studentId,
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-      },
-    });
-
-    if (!student) {
-      throw new NotFoundException('Student profile not found');
-    }
-
-    const existingRib = await this.prisma.rib.findUnique({
-      where: {
-        studentId,
-      },
-    });
-
-    const rib = await this.prisma.rib.upsert({
-      where: {
-        studentId,
-      },
-      update: {
-        bankName: data.banque,
-        iban: data.iban,
-        ibanMasked: maskIban(data.iban),
-        address: data.adresse ?? existingRib?.address ?? '',
-        phone: data.telephone ?? existingRib?.phone ?? '',
-        email: data.email ?? existingRib?.email ?? student.email,
-        status: 'PENDING',
-        submittedAt,
-        reviewedAt: null,
-        reviewComment: null,
-      },
-      create: {
-        studentId,
-        bankName: data.banque,
-        holderName: `${student.firstName} ${student.lastName}`,
-        iban: data.iban,
-        ibanMasked: maskIban(data.iban),
-        bic: '',
-        address: data.adresse ?? '',
-        phone: data.telephone ?? '',
-        email: data.email ?? student.email,
-        status: 'PENDING',
-        submittedAt,
-      },
-    });
-
-    return mapRib(rib);
   }
 
   async getCursus(studentId: string) {

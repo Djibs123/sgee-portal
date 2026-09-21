@@ -12,11 +12,7 @@ import type {
   OptionalReviewCommentDto,
   RejectDto,
 } from './admin.dto';
-import {
-  mapAdminDocument,
-  mapAdminRib,
-  mapAdminStudentSummary,
-} from './admin.mapper';
+import { mapAdminDocument, mapAdminStudentSummary } from './admin.mapper';
 
 const studentMinimalSelect = {
   id: true,
@@ -112,30 +108,6 @@ export class AdminService {
     );
   }
 
-  async getPendingRibs() {
-    const ribs = await this.prisma.rib.findMany({
-      where: { status: 'PENDING' },
-      include: { student: { select: studentMinimalSelect } },
-      orderBy: { submittedAt: 'asc' },
-    });
-
-    return {
-      items: ribs.map(mapAdminRib),
-    };
-  }
-
-  validateRib(
-    ribId: string,
-    data: OptionalReviewCommentDto,
-    actor: AuditActor,
-  ) {
-    return this.reviewRib(ribId, 'VALIDATED', data.reviewComment, actor);
-  }
-
-  rejectRib(ribId: string, data: RejectDto, actor: AuditActor) {
-    return this.reviewRib(ribId, 'REJECTED', data.reviewComment, actor);
-  }
-
   private async reviewDocument(
     documentId: string,
     decision: ReviewDecision,
@@ -189,51 +161,6 @@ export class AdminService {
       );
 
       return mapAdminDocument(updatedDocument);
-    });
-  }
-
-  private async reviewRib(
-    ribId: string,
-    decision: ReviewDecision,
-    reviewComment: string | undefined,
-    actor: AuditActor,
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      const rib = await tx.rib.findUnique({ where: { id: ribId } });
-
-      if (!rib) {
-        throw new NotFoundException('RIB introuvable');
-      }
-
-      if (rib.status !== 'PENDING') {
-        throw new ConflictException('Ce RIB ne peut pas être instruit');
-      }
-
-      const updatedRib = await tx.rib.update({
-        where: { id: rib.id },
-        data: {
-          status: decision,
-          reviewedAt: new Date(),
-          reviewComment: reviewComment ?? null,
-        },
-        include: { student: { select: studentMinimalSelect } },
-      });
-
-      await this.audit.record(
-        {
-          actor,
-          action: decision === 'VALIDATED' ? 'RIB_VALIDATED' : 'RIB_REJECTED',
-          entityType: 'Rib',
-          entityId: rib.id,
-          metadata: {
-            studentId: rib.studentId,
-            reviewComment: reviewComment ?? null,
-          },
-        },
-        tx,
-      );
-
-      return mapAdminRib(updatedRib);
     });
   }
 }

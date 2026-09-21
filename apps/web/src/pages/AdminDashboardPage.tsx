@@ -6,6 +6,7 @@ import {
   getAdminPendingRibs,
   rejectAdminDocument,
   rejectAdminRib,
+  revealAdminRibIban,
   validateAdminDocument,
   validateAdminRib,
   type AdminPendingDocument,
@@ -32,6 +33,7 @@ export function AdminDashboardPage({
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [revealedIbans, setRevealedIbans] = useState<Record<string, string>>({})
 
   const loadPendingItems = useCallback(async () => {
     const [documentsResponse, ribsResponse] = await Promise.all([
@@ -157,6 +159,25 @@ export function AdminDashboardPage({
       setFeedback({
         type: 'error',
         message: 'Impossible de refuser ce document',
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // Consultation journalisée côté API : l'IBAN complet n'est chargé qu'à la demande.
+  const revealIban = async (rib: AdminPendingRib) => {
+    setFeedback(null)
+    setBusyId(rib.id)
+
+    try {
+      const { iban } = await revealAdminRibIban(rib.id)
+
+      setRevealedIbans((current) => ({ ...current, [rib.id]: iban }))
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Impossible d’afficher cet IBAN',
       })
     } finally {
       setBusyId(null)
@@ -298,9 +319,29 @@ export function AdminDashboardPage({
                         <p>
                           {rib.student.code} - {rib.student.firstName} {rib.student.lastName}
                         </p>
-                        <p>{rib.bankName} - {rib.ibanMasked || rib.iban} - {rib.submittedAtLabel || 'Date non renseignee'}</p>
+                        <p>
+                          {rib.bankName} - <span className="mono">{revealedIbans[rib.id] ?? rib.ibanMasked}</span>
+                          {' '}- soumis le {rib.submittedAt ? new Date(rib.submittedAt).toLocaleDateString('fr-FR') : 'date inconnue'}
+                        </p>
+                        <p>
+                          RIB actif : {rib.activeRib ? `${rib.activeRib.bankName} - ${rib.activeRib.ibanMasked}` : 'aucun'}
+                        </p>
+                        {rib.sharedIbanCount > 0 && (
+                          <p role="note" style={{ color: 'var(--red-sn)', fontWeight: 700 }}>
+                            Attention : cet IBAN est aussi déclaré par {rib.sharedIbanCount} autre(s) boursier(s).
+                          </p>
+                        )}
                       </div>
                       <div className="admin-actions">
+                        {!revealedIbans[rib.id] && (
+                          <button
+                            type="button"
+                            onClick={() => void revealIban(rib)}
+                            disabled={busyId === rib.id}
+                          >
+                            Afficher l’IBAN
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => void validateRib(rib)}

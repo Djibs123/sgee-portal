@@ -14,6 +14,8 @@ import {
 const DEV_JWT_SECRET = 'dev-sgee-portal-change-me';
 const DEV_ADMIN_JWT_SECRET = 'dev-sgee-admin-change-me';
 const MIN_SECRET_LENGTH = 32;
+/** Clé de développement uniquement : refusée en production. */
+const DEV_DATA_ENCRYPTION_KEY = 'F5deLC0vjwQkrK+RGpqPawXqmp9i9lGBtObi7Qgit1o=';
 
 const toInt = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -71,6 +73,10 @@ class EnvironmentVariables {
   @Min(1)
   @Max(50)
   MAX_UPLOAD_SIZE_MB = 5;
+
+  /** Clé AES-256 en base64 (32 octets) pour chiffrer les données bancaires. */
+  @IsString()
+  DATA_ENCRYPTION_KEY = DEV_DATA_ENCRYPTION_KEY;
 }
 
 export type AppEnv = Readonly<
@@ -119,6 +125,10 @@ export function validateEnv(source: NodeJS.ProcessEnv): AppEnv {
 
   const isProduction = config.NODE_ENV === 'production';
 
+  if (Buffer.from(config.DATA_ENCRYPTION_KEY, 'base64').length !== 32) {
+    throw new Error('DATA_ENCRYPTION_KEY doit encoder 32 octets en base64');
+  }
+
   if (isProduction) {
     const weakSecrets = (
       [
@@ -140,6 +150,10 @@ export function validateEnv(source: NodeJS.ProcessEnv): AppEnv {
 
     if (config.JWT_SECRET === config.ADMIN_JWT_SECRET) {
       throw new Error('JWT_SECRET et ADMIN_JWT_SECRET doivent être différents');
+    }
+
+    if (config.DATA_ENCRYPTION_KEY === DEV_DATA_ENCRYPTION_KEY) {
+      throw new Error('DATA_ENCRYPTION_KEY doit être définie en production');
     }
   }
 
