@@ -295,6 +295,8 @@ model ScholarshipRequest {
   honorDeclarationAt   DateTime?
   /// Alertes d'éligibilité figées à la soumission, pour l'instructeur.
   eligibilityWarnings  Json?
+  /// Nombre d'alertes à la soumission : filtre rapide de la file d'instruction.
+  warningCount         Int             @default(0)
   submittedAt          DateTime?
   decidedAt            DateTime?
   decidedById          String?
@@ -315,6 +317,7 @@ model ScholarshipRequest {
   @@unique([applicantId, campaignId])
   @@index([campaignId, status])
   @@index([status, submittedAt])
+  @@index([warningCount])
 }
 
 /// Pièce justificative rattachée à une demande (un fichier par type de pièce).

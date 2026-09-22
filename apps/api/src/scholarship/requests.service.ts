@@ -356,6 +356,7 @@ export class RequestsService {
           submittedAt: now,
           honorDeclarationAt: now,
           eligibilityWarnings: eligibility.warnings,
+          warningCount: eligibility.warnings.length,
           version: { increment: 1 },
         },
       });
