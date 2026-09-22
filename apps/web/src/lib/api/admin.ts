@@ -1,6 +1,7 @@
 import type { AdminRole, StudentDocumentStatus, StudentRibStatus } from '../../types'
 import { downloadFile, requestJson, sendJson } from './client'
-import type { ListResponse } from './student'
+import type { RequestView } from './requests'
+import type { CampaignView, ListResponse, RequestSummary } from './student'
 
 export type AdminProfile = {
   id: string
@@ -98,3 +99,93 @@ export const validateAdminRib = (ribId: string) =>
 
 export const rejectAdminRib = (ribId: string, reviewComment: string) =>
   sendJson<AdminPendingRib>(`/admin/ribs/${ribId}/reject`, 'PATCH', { reviewComment })
+
+/* Instruction des demandes de bourse */
+
+export type AdminRequestOwner = {
+  kind: 'STUDENT' | 'APPLICANT'
+  name: string
+  email: string
+  studentNumber: string | null
+}
+
+export type AdminRequestSummary = RequestSummary & {
+  warningCount: number
+  owner: AdminRequestOwner
+}
+
+export type AdminRequestDetail = RequestView & {
+  warningCount: number
+  owner: AdminRequestOwner & {
+    birthDate: string | null
+    age: number | null
+    scholarshipStatus: string | null
+    currentLevel: string | null
+    cursus: Array<{
+      academicYear: string
+      institution: string | null
+      level: string | null
+      result: string | null
+      isCurrent: boolean
+    }>
+  }
+}
+
+export type AdminRequestFilters = {
+  page?: number
+  pageSize?: number
+  type?: string
+  status?: string
+  campaignId?: string
+  targetLevel?: string
+  hasWarnings?: boolean
+  search?: string
+}
+
+export type AdminCampaign = CampaignView & {
+  /** Nombre de demandes par statut. */
+  requestCounts: Partial<Record<string, number>>
+}
+
+/** Paramètres de requête sans valeurs vides (l'API refuse les champs inconnus ou vides). */
+export function toQueryString(params: Record<string, string | number | boolean | undefined>) {
+  const query = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '' && value !== false) {
+      query.set(key, String(value))
+    }
+  }
+
+  const text = query.toString()
+
+  return text ? `?${text}` : ''
+}
+
+export const listAdminRequests = (filters: AdminRequestFilters) =>
+  requestJson<Paginated<AdminRequestSummary>>(`/admin/requests${toQueryString(filters)}`)
+
+export const getAdminRequest = (requestId: string) => requestJson<AdminRequestDetail>(`/admin/requests/${requestId}`)
+
+export const downloadAdminRequestDocument = (requestId: string, documentId: string) =>
+  downloadFile(`/admin/requests/${requestId}/documents/${documentId}/download`)
+
+export const startAdminReview = (requestId: string) =>
+  sendJson<AdminRequestDetail>(`/admin/requests/${requestId}/start-review`, 'POST', {})
+
+/** Complément : motif général et, si besoin, pièces à redéposer (même motif pour chacune). */
+export const requestAdminInfo = (requestId: string, comment: string, documentTypeCodes: string[] = []) =>
+  sendJson<AdminRequestDetail>(`/admin/requests/${requestId}/request-info`, 'POST', {
+    comment,
+    ...(documentTypeCodes.length > 0
+      ? { documents: documentTypeCodes.map((documentTypeCode) => ({ documentTypeCode, comment })) }
+      : {}),
+  })
+
+export const approveAdminRequest = (requestId: string, comment?: string) =>
+  sendJson<AdminRequestDetail>(`/admin/requests/${requestId}/approve`, 'POST', comment ? { comment } : {})
+
+export const rejectAdminRequest = (requestId: string, comment: string) =>
+  sendJson<AdminRequestDetail>(`/admin/requests/${requestId}/reject`, 'POST', { comment })
+
+export const listAdminCampaigns = () => requestJson<ListResponse<AdminCampaign>>('/admin/campaigns')

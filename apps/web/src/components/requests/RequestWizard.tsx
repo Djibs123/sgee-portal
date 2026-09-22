@@ -10,7 +10,7 @@ import {
   type SubmissionProblem,
 } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
-import { ACADEMIC_RESULT_LABELS, REQUEST_FIELD_LABELS, STUDY_LEVEL_GROUPS } from '../../lib/studyLevels'
+import { ACADEMIC_RESULT_LABELS, REQUEST_FIELD_LABELS, STUDY_LEVEL_GROUPS } from '../../lib/scholarshipLabels'
 import { InfoItem, InfoList } from '../ui/InfoList'
 import { StatusMessage } from '../ui/StatusMessage'
 import { Stepper } from '../ui/Stepper'

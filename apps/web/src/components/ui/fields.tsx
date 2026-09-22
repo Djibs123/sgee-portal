@@ -97,7 +97,15 @@ export function SelectField({
   required,
   name,
   children,
-}: BaseProps & { value: string; onChange: (value: string) => void; name: string; children: ReactNode }) {
+  emptyLabel = 'Choisir…',
+}: BaseProps & {
+  value: string
+  onChange: (value: string) => void
+  name: string
+  children: ReactNode
+  /** Libellé de l'option vide (« Tous » pour un filtre). */
+  emptyLabel?: string
+}) {
   const id = useId()
   const hintId = useId()
   const errorId = useId()
@@ -117,7 +125,7 @@ export function SelectField({
         aria-describedby={describedBy(hintId, errorId, hint, error)}
         onChange={(event) => onChange(event.target.value)}
       >
-        <option value="">Choisir…</option>
+        <option value="">{emptyLabel}</option>
         {children}
       </select>
       <FieldMessages hint={hint} hintId={hintId} error={error} errorId={errorId} />

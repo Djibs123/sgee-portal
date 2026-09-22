@@ -1,6 +1,6 @@
 import type { AcademicResult } from './api/requests'
 
-/** Miroir des niveaux de l'API (`StudyLevel`), regroupés par cycle pour le formulaire. */
+/** Libellés métier des bourses. Miroir des niveaux de l'API (`StudyLevel`), regroupés par cycle pour le formulaire. */
 export const STUDY_LEVEL_GROUPS: Array<{ cycle: string; levels: Array<{ code: string; label: string }> }> = [
   {
     cycle: 'Classes préparatoires et BTS',
@@ -61,3 +61,29 @@ export const REQUEST_FIELD_LABELS: Record<string, string> = {
   previousLevel: 'niveau de l’année précédente',
   previousResult: 'résultat de l’année précédente',
 }
+
+export const REQUEST_TYPE_LABELS: Record<string, string> = {
+  RENEWAL: 'Renouvellement',
+  NEW_APPLICATION: 'Candidature',
+}
+
+/** Statuts visibles par l'instruction (les brouillons restent privés au demandeur). */
+export const REVIEWABLE_STATUS_LABELS: Record<string, string> = {
+  SUBMITTED: 'Soumise',
+  UNDER_REVIEW: 'En cours d’instruction',
+  INCOMPLETE: 'Complément demandé',
+  APPROVED: 'Acceptée',
+  REJECTED: 'Refusée',
+  WITHDRAWN: 'Retirée',
+}
+
+export const SCHOLARSHIP_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Active',
+  SUSPENDED: 'Suspendue',
+  CANCELLED: 'Annulée',
+  COMPLETED: 'Terminée',
+}
+
+const LEVEL_LABELS = new Map(STUDY_LEVEL_GROUPS.flatMap((group) => group.levels.map((level) => [level.code, level.label])))
+
+export const levelLabelOf = (code: string | null) => (code ? (LEVEL_LABELS.get(code) ?? code) : null)

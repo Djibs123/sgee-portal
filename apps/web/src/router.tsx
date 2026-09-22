@@ -3,7 +3,10 @@ import { AdminLayout } from './layouts/AdminLayout'
 import { ApplicantLayout } from './layouts/ApplicantLayout'
 import { PortalLayout } from './layouts/PortalLayout'
 import { AdminSessionRoot, ApplicantSessionRoot, StudentSessionRoot } from './layouts/SessionRoots'
-import { AdminHomeRoute } from './pages/AdminHomeRoute'
+import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
+import { AdminRequestDetailPage } from './pages/admin/AdminRequestDetailPage'
+import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
+import { AdminValidationsPage } from './pages/admin/AdminValidationsPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { ApplicantHomePage } from './pages/candidature/ApplicantHomePage'
 import { ApplicantLoginPage } from './pages/candidature/ApplicantLoginPage'
@@ -71,7 +74,13 @@ export const routes: RouteObject[] = [
       {
         path: '/admin',
         element: <AdminLayout />,
-        children: [{ index: true, element: <AdminHomeRoute /> }],
+        children: [
+          { index: true, element: <AdminOverviewPage /> },
+          { path: 'demandes', element: <AdminRequestsPage /> },
+          { path: 'demandes/:requestId', element: <AdminRequestDetailPage /> },
+          { path: 'validations', element: <AdminValidationsPage /> },
+          { path: '*', element: <NotFoundPage embedded home="/admin" /> },
+        ],
       },
     ],
   },

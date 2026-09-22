@@ -4,8 +4,8 @@ import { RouterProvider } from 'react-router/dom'
 import { vi } from 'vitest'
 import { routes } from '../router'
 
-/** Réponse simulée : corps JSON (200), `{ status, body }`, ou fonction de la requête. */
-export type Reply = unknown | { status: number; body: unknown } | ((init?: RequestInit) => unknown)
+/** Réponse simulée : corps JSON (200), `{ status, body }`, ou fonction de la requête et de l'URL. */
+export type Reply = unknown | { status: number; body: unknown } | ((init: RequestInit | undefined, url: URL) => unknown)
 
 const isStatusReply = (value: unknown): value is { status: number; body: unknown } =>
   typeof value === 'object' && value !== null && 'status' in value && 'body' in value && Object.keys(value).length === 2
@@ -15,7 +15,10 @@ export function mockApi(table: Record<string, Reply>) {
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     const path = url.replace(/^.*\/api/, '').split('?')[0]
     const reply = table[`${init?.method ?? 'GET'} ${path}`]
-    const resolved = typeof reply === 'function' ? (reply as (init?: RequestInit) => unknown)(init) : reply
+    const resolved =
+      typeof reply === 'function'
+        ? (reply as (init: RequestInit | undefined, url: URL) => unknown)(init, new URL(url, 'http://localhost'))
+        : reply
     const { status, body } = isStatusReply(resolved)
       ? resolved
       : { status: resolved === undefined ? 404 : 200, body: resolved ?? { message: 'introuvable' } }

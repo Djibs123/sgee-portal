@@ -1,7 +1,7 @@
 import type { RequestSpace, RequestView } from '../../lib/api'
 import { formatDate } from '../../lib/format'
 import { toneOfStatus } from '../../lib/status'
-import { ACADEMIC_RESULT_LABELS } from '../../lib/studyLevels'
+import { ACADEMIC_RESULT_LABELS } from '../../lib/scholarshipLabels'
 import { InfoItem, InfoList } from '../ui/InfoList'
 import { StatusPill } from '../ui/StatusPill'
 import { RequestDocuments } from './RequestDocuments'
