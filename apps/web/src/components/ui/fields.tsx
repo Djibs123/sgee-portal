@@ -43,13 +43,19 @@ export function TextField({
   multiline = false,
   inputMode,
   name,
+  autoComplete,
+  minLength,
+  maxLength,
 }: BaseProps & {
   value: string
   onChange: (value: string) => void
-  type?: 'text' | 'number'
+  type?: 'text' | 'number' | 'email' | 'password' | 'date' | 'tel'
   multiline?: boolean
   inputMode?: 'decimal' | 'numeric' | 'text'
   name: string
+  autoComplete?: string
+  minLength?: number
+  maxLength?: number
 }) {
   const id = useId()
   const hintId = useId()
@@ -59,6 +65,9 @@ export function TextField({
     name,
     value,
     required,
+    autoComplete,
+    minLength,
+    maxLength,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy(hintId, errorId, hint, error),
   }

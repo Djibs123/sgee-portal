@@ -1,12 +1,19 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { AdminLayout } from './layouts/AdminLayout'
+import { ApplicantLayout } from './layouts/ApplicantLayout'
 import { PortalLayout } from './layouts/PortalLayout'
-import { AdminSessionRoot, StudentSessionRoot } from './layouts/SessionRoots'
+import { AdminSessionRoot, ApplicantSessionRoot, StudentSessionRoot } from './layouts/SessionRoots'
 import { AdminHomeRoute } from './pages/AdminHomeRoute'
 import { AdminLoginPage } from './pages/AdminLoginPage'
+import { ApplicantHomePage } from './pages/candidature/ApplicantHomePage'
+import { ApplicantLoginPage } from './pages/candidature/ApplicantLoginPage'
+import { ApplicantRegisterPage } from './pages/candidature/ApplicantRegisterPage'
+import { ApplicantSpacePage } from './pages/candidature/ApplicantSpacePage'
+import { VerifyEmailPage } from './pages/candidature/VerifyEmailPage'
 import { CursusPage } from './pages/CursusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { GeneralPage } from './pages/GeneralPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -14,11 +21,28 @@ import { NotificationsPage } from './pages/NotificationsPage'
 import { PaiementsPage } from './pages/PaiementsPage'
 import { PublicHomePage } from './pages/PublicHomePage'
 import { RenewalPage } from './pages/RenewalPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { RibPage } from './pages/RibPage'
 
 /** Chaque espace a son fournisseur de session : aucune requête de session sur les pages publiques. */
 export const routes: RouteObject[] = [
   { path: '/', element: <PublicHomePage /> },
+  { path: '/mot-de-passe-oublie', element: <ForgotPasswordPage /> },
+  { path: '/reinitialiser', element: <ResetPasswordPage /> },
+  {
+    element: <ApplicantSessionRoot />,
+    children: [
+      { path: '/candidature', element: <ApplicantHomePage /> },
+      { path: '/candidature/inscription', element: <ApplicantRegisterPage /> },
+      { path: '/candidature/verifier-email', element: <VerifyEmailPage /> },
+      { path: '/candidature/connexion', element: <ApplicantLoginPage /> },
+      {
+        path: '/candidature/espace',
+        element: <ApplicantLayout />,
+        children: [{ index: true, element: <ApplicantSpacePage /> }],
+      },
+    ],
+  },
   {
     element: <StudentSessionRoot />,
     children: [

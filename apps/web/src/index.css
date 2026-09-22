@@ -1528,3 +1528,20 @@ button, .btn, .copy-btn, .nav-item, .logout-btn { min-height: 32px; }
 .timeline-actor { font-weight: 400; color: var(--text-2); }
 .timeline time { font-size: 12.5px; color: var(--text-2); }
 .timeline-comment { font-size: 13.5px; margin-top: 2px; }
+
+/* Candidature et pages d'accès */
+.form-stack { display: grid; gap: 14px; }
+.form-stack .login-submit { margin-top: 4px; }
+.radio-group { border: none; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13.5px; }
+.radio-group legend { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.radio-group label { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; }
+.bullet-list { margin: 0 0 14px 18px; font-size: 13.5px; display: grid; gap: 4px; }
+.public-campaign-list { list-style: none; display: grid; gap: 10px; }
+.public-campaign-list a { font-weight: 700; text-decoration: underline; }
+.applicant-header { background: var(--surface); border-bottom: 1px solid var(--border); }
+.applicant-header-inner { max-width: 960px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.applicant-brand { font-weight: 800; color: var(--green); text-decoration: none; flex: 1 1 auto; }
+.applicant-brand span { font-weight: 600; color: var(--text-2); margin-left: 6px; }
+.applicant-user { font-size: 13.5px; color: var(--text-2); }
+.applicant-main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+.applicant-space { display: grid; gap: 16px; }

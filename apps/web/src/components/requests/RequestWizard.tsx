@@ -14,7 +14,7 @@ import { ACADEMIC_RESULT_LABELS, REQUEST_FIELD_LABELS, STUDY_LEVEL_GROUPS } from
 import { InfoItem, InfoList } from '../ui/InfoList'
 import { StatusMessage } from '../ui/StatusMessage'
 import { Stepper } from '../ui/Stepper'
-import { CheckboxField, SelectField, TextField } from './fields'
+import { CheckboxField, SelectField, TextField } from '../ui/fields'
 import { RequestDocuments } from './RequestDocuments'
 
 type Draft = {

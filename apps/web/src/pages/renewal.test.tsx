@@ -1,10 +1,11 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryRouter } from 'react-router'
-import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RequestView } from '../lib/api'
-import { routes } from '../router'
+import { bodyOf, mockApi as mockTable, renderAt, type Reply } from '../test/mockApi'
+
+const me = { id: 's1', firstName: 'Awa', lastName: 'Fall', studentNumber: 'STU001' }
+const mockApi = (table: Record<string, Reply>) => mockTable({ 'GET /me': me, ...table })
 
 const campaign = {
   id: 'c1',
@@ -76,42 +77,6 @@ const summaryOf = (request: RequestView) => ({
   decidedAt: request.decidedAt,
   updatedAt: request.updatedAt,
 })
-
-type Reply = unknown | { status: number; body: unknown } | ((init?: RequestInit) => unknown)
-
-const isStatusReply = (value: unknown): value is { status: number; body: unknown } =>
-  typeof value === 'object' && value !== null && 'status' in value && 'body' in value && Object.keys(value).length === 2
-
-function mockApi(table: Record<string, Reply>) {
-  const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-    const path = url.replace(/^.*\/api/, '').split('?')[0]
-    const replies: Record<string, Reply> = {
-      'GET /me': { id: 's1', firstName: 'Awa', lastName: 'Fall', studentNumber: 'STU001' },
-      ...table,
-    }
-    const reply = replies[`${init?.method ?? 'GET'} ${path}`]
-    const resolved = typeof reply === 'function' ? (reply as (init?: RequestInit) => unknown)(init) : reply
-    const { status, body } = isStatusReply(resolved)
-      ? resolved
-      : { status: resolved === undefined ? 404 : 200, body: resolved ?? { message: 'introuvable' } }
-
-    return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
-  })
-
-  vi.stubGlobal('fetch', fetchMock)
-
-  return fetchMock
-}
-
-const bodyOf = (fetchMock: ReturnType<typeof mockApi>, method: string, path: string) => {
-  const call = fetchMock.mock.calls.find(([url, init]) => url.endsWith(path) && init?.method === method)
-
-  return call ? JSON.parse(String(call[1]?.body)) : undefined
-}
-
-function renderAt(path: string) {
-  render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
-}
 
 describe('Renouvellement de la bourse', () => {
   afterEach(() => {

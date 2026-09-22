@@ -1,3 +1,4 @@
+import { PublicCampaigns } from '../components/public/PublicCampaigns'
 import { PublicFaq } from '../components/public/PublicFaq'
 import { PublicFooter } from '../components/public/PublicFooter'
 import { PublicHeader } from '../components/public/PublicHeader'
@@ -12,6 +13,7 @@ export function PublicHomePage() {
       <PublicHeader />
       <main>
         <PublicHero />
+        <PublicCampaigns />
         <PublicServices />
         <section className="public-section public-demarches" id="demarches">
           <div className="public-container">

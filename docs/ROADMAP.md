@@ -38,7 +38,7 @@ pnpm dev               # API :3000, web :5173
 | L10 | Fondations front | fait | voir git log |
 | L11 | Portail boursier | fait | voir git log |
 | L12 | Renouvellement boursier (front) | fait | voir git log |
-| L13 | Candidature publique (front) | à faire | |
+| L13 | Candidature publique (front) | fait | voir git log |
 | L14 | Back-office (front) | à faire | |
 | L15 | DevOps et documentation | à faire | |
 
@@ -115,6 +115,7 @@ Pour L13 : réutiliser `<RequestWorkspace space="applicant" startLabel="Déposer
 
 ### L13 — Candidature publique (front)
 Section « Candidatures » dynamique sur l'accueil, inscription, vérification e-mail, connexion, mot de passe oublié, espace candidat avec l'assistant partagé et le suivi.
+Réalisé : `lib/api/applicant.ts` (inscription, vérification, renvoi du lien, connexion, `me`, mot de passe oublié/réinitialisation, `GET /public/campaigns`) ; session candidat (`useApplicantSession`, `ApplicantSessionRoot`) ; `layouts/AuthShell.tsx` (gabarit des pages d'accès, `LoginPage` migrée) et `layouts/ApplicantLayout.tsx` (protégé, déconnexion) ; pages `candidature/ApplicantHomePage` (`/candidature` : campagnes NEW_APPLICATION, conditions), `ApplicantRegisterPage` (`/candidature/inscription`), `VerifyEmailPage` (`/candidature/verifier-email` : confirmation par bouton pour ne pas laisser un antivirus de messagerie consommer le jeton), `ApplicantLoginPage` (`/candidature/connexion` : 403 → renvoi du lien), `ApplicantSpacePage` (`/candidature/espace` : `RequestWorkspace space="applicant"`, notifications, message d'attribution avec numéro boursier) ; `ForgotPasswordPage` (`/mot-de-passe-oublie?compte=boursier|candidat`) et `ResetPasswordPage` (`/reinitialiser`) ; `lib/useUrlToken.ts` retire le jeton de l'URL après lecture ; `lib/password.ts` (12-128, sans règles de composition) ; `components/public/PublicCampaigns.tsx` remplace le bandeau figé de l'accueil ; champs de formulaire déplacés dans `components/ui/fields.tsx` ; `src/test/mockApi.tsx` (table de réponses partagée) ; tests `src/pages/candidature/candidature.test.tsx` (30 tests front au total).
 
 ### L14 — Back-office (front)
 Layout admin, file des demandes filtrable, fiche demande (pièces, alertes, historique, décision), validations documents et RIB avec `Dialog`, campagnes (SUPER_ADMIN), recherche étudiants, journal d'audit. Suite complète verte.

@@ -33,15 +33,6 @@ export function PublicHero() {
           </aside>
         </div>
       </section>
-      <section className="public-candidatures" id="candidatures" aria-labelledby="candidatures-title">
-        <div className="public-container public-candidatures-inner">
-          <div>
-            <h2 id="candidatures-title">Candidatures</h2>
-            <p>Les candidatures ouvrent selon le calendrier défini par l’administration.</p>
-          </div>
-          <Link to="/candidature">Espace candidat</Link>
-        </div>
-      </section>
     </>
   )
 }

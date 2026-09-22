@@ -11,7 +11,7 @@ import {
   type RequestSpace,
   type RequestView,
 } from '../../lib/api'
-import { formatLongDate } from '../../lib/format'
+import { campaignPeriod } from '../../lib/campaigns'
 import { toneOfStatus } from '../../lib/status'
 import { useApiResource } from '../../lib/useApiResource'
 import { InlineState } from '../InlineState'
@@ -21,9 +21,6 @@ import { StatusMessage } from '../ui/StatusMessage'
 import { StatusPill } from '../ui/StatusPill'
 import { RequestOverview } from './RequestOverview'
 import { RequestWizard } from './RequestWizard'
-
-/** `closesAt` est exclusif : le dernier jour affiché est la veille à 23:59:59. */
-const lastDayOf = (campaign: CampaignView) => new Date(new Date(campaign.closesAt).getTime() - 1)
 
 function CampaignCard({ campaign }: { campaign: CampaignView }) {
   return (
@@ -35,8 +32,7 @@ function CampaignCard({ campaign }: { campaign: CampaignView }) {
         <StatusPill tone={campaign.phase === 'OPEN' ? 'success' : 'neutral'}>{campaign.phaseLabel}</StatusPill>
       </div>
       <p>
-        Du {formatLongDate(campaign.opensAt)} au {formatLongDate(lastDayOf(campaign))} inclus – année{' '}
-        {campaign.academicYear.label}.
+        Dépôt {campaignPeriod(campaign)} – année {campaign.academicYear.label}.
       </p>
       {campaign.instructions && <p>{campaign.instructions}</p>}
       {campaign.requirements.length > 0 && (
