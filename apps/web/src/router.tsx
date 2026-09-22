@@ -13,6 +13,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { PaiementsPage } from './pages/PaiementsPage'
 import { PublicHomePage } from './pages/PublicHomePage'
+import { RenewalPage } from './pages/RenewalPage'
 import { RibPage } from './pages/RibPage'
 
 /** Chaque espace a son fournisseur de session : aucune requête de session sur les pages publiques. */
@@ -33,6 +34,7 @@ export const routes: RouteObject[] = [
           { path: 'rib', element: <RibPage /> },
           { path: 'documents', element: <DocumentsPage /> },
           { path: 'notifications', element: <NotificationsPage /> },
+          { path: 'renouvellement', element: <RenewalPage /> },
           { path: '*', element: <NotFoundPage embedded /> },
         ],
       },

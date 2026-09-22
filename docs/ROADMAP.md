@@ -37,7 +37,7 @@ pnpm dev               # API :3000, web :5173
 | L09 | API candidature et instruction admin | fait | voir git log |
 | L10 | Fondations front | fait | voir git log |
 | L11 | Portail boursier | fait | voir git log |
-| L12 | Renouvellement boursier (front) | à faire | |
+| L12 | Renouvellement boursier (front) | fait | voir git log |
 | L13 | Candidature publique (front) | à faire | |
 | L14 | Back-office (front) | à faire | |
 | L15 | DevOps et documentation | à faire | |
@@ -110,6 +110,8 @@ Leçon : un texte `.sr-only` commençant par une espace est fusionné au texte v
 
 ### L12 — Renouvellement boursier (front)
 Assistant en 4 étapes (situation N+1, résultats N-1, pièces, récapitulatif et attestation), sauvegarde automatique, frise de suivi, complément demandé, retrait.
+Réalisé : `lib/api/requests.ts` (client commun aux espaces `student` et `applicant`) ; `lib/studyLevels.ts` (niveaux par cycle, résultats, libellés des champs manquants) ; `components/requests/` : `RequestWorkspace` (campagne en cours avec dernier jour = `closesAt` − 1 ms, blocages d'éligibilité, création, reprise d'une demande retirée, `?demande=<id>`, liste des demandes, retrait via `ConfirmDialog`), `RequestWizard` (étapes selon le type : RENEWAL = année demandée / année précédente ; NEW_APPLICATION = formation visée / baccalauréat et motivation ; puis pièces et vérification ; enregistrement à chaque changement d'étape avec `version`, 409 → message de rechargement ; focus sur le titre d'étape ou le premier champ invalide ; alertes instructeur et 422 détaillé ; attestation obligatoire), `RequestOverview` (lecture, décision, pièces, frise), `RequestDocuments`, `RequestTimeline`, `fields.tsx` ; `pages/RenewalPage.tsx` sur `/portal/renouvellement` ; tests `src/pages/renewal.test.tsx` (20 tests front au total) ; `scrollIntoView` simulé dans `src/test/setup.ts`.
+Pour L13 : réutiliser `<RequestWorkspace space="applicant" startLabel="Déposer ma candidature" />` ; les étapes NEW_APPLICATION sont déjà prêtes.
 
 ### L13 — Candidature publique (front)
 Section « Candidatures » dynamique sur l'accueil, inscription, vérification e-mail, connexion, mot de passe oublié, espace candidat avec l'assistant partagé et le suivi.

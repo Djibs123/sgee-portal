@@ -16,6 +16,10 @@ if (!HTMLDialogElement.prototype.close) {
   }
 }
 
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {}
+}
+
 afterEach(() => {
   cleanup()
 })

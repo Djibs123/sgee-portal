@@ -1,4 +1,5 @@
 export * from './admin'
 export * from './client'
 export * from './notifications'
+export * from './requests'
 export * from './student'
