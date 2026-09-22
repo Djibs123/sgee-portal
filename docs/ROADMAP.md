@@ -39,7 +39,7 @@ pnpm dev               # API :3000, web :5173
 | L11 | Portail boursier | fait | voir git log |
 | L12 | Renouvellement boursier (front) | fait | voir git log |
 | L13 | Candidature publique (front) | fait | voir git log |
-| L14 | Back-office (front) | à faire | |
+| L14 | Back-office (front) | fait | voir git log (L14a, L14b) |
 | L15 | DevOps et documentation | à faire | |
 
 ## Fiches
@@ -120,7 +120,8 @@ Réalisé : `lib/api/applicant.ts` (inscription, vérification, renvoi du lien, 
 ### L14 — Back-office (front)
 Layout admin, file des demandes filtrable, fiche demande (pièces, alertes, historique, décision), validations documents et RIB avec `Dialog`, campagnes (SUPER_ADMIN), recherche étudiants, journal d'audit. Suite complète verte.
 Découpé en deux commits. L14a réalisé : `layouts/AdminLayout.tsx` (en-tête, rôle, déconnexion, menu `NavLink` adapté au rôle, lien d'évitement) ; `pages/admin/AdminOverviewPage` (compteurs via `pageSize=1`), `AdminRequestsPage` (`/admin/demandes`, filtres dans l'URL, tableau avec `caption`/`scope`, pagination), `AdminRequestDetailPage` (`/admin/demandes/:id` : demandeur, demande, alertes, pièces téléchargeables, cursus, historique vu de l'instruction, décisions via `ReasonDialog` et `components/admin/RequestInfoDialog`), `AdminValidationsPage` (`/admin/validations`, ex-`AdminDashboardPage` sans `window.prompt`) ; `lib/scholarshipLabels.ts` (ex-`studyLevels.ts`) ; `SelectField` accepte `emptyLabel` ; `NotFoundPage` accepte `home` ; tests `src/pages/admin/admin.test.tsx` (37 tests front).
-Reste L14b : `/admin/etudiants` (`GET /admin/students`), `/admin/campagnes` (`GET /admin/campaigns` pour tous, création/modification/clôture SUPER_ADMIN), `/admin/journal` (`GET /admin/audit-logs`, SUPER_ADMIN), puis suite complète API + front.
+L14b réalisé : `AdminStudentsPage` (`/admin/etudiants`, recherche dans l'URL, lien vers les demandes de l'étudiant) ; `AdminCampaignsPage` (`/admin/campagnes` : lecture pour tous, compteurs sans brouillons ; SUPER_ADMIN : `components/admin/CampaignFormDialog` création/modification avec pièces reprises d'une campagne du même type, `AcademicYearDialog`, clôture confirmée) ; `AdminAuditPage` (`/admin/journal`, filtre par action, libellés `lib/auditLabels.ts`) ; `lib/campaigns.ts` : saisie par jour calendaire, bornes à minuit UTC, dernier jour inclus → `closesAt` exclusif (+ tests) ; le panneau de filtres des demandes est remonté quand les filtres de l'URL changent ; tests `admin-settings.test.tsx`. Suite complète verte : API 37 unitaires + 50 e2e, front 45 tests, lint, typecheck, build.
+Limite connue : l'édition fine des pièces d'une campagne (cycles, ajout d'un type) n'a pas d'écran ; elle passe par l'API (`PATCH /admin/campaigns/:id` avec `requirements`).
 
 ### L15 — DevOps et documentation
 Dockerfiles multi-étapes non-root, nginx avec fallback SPA et en-têtes, `docker-compose.yml` (PostgreSQL 18, api, web, volume uploads), CI GitHub Actions (lint, typecheck, tests, build, e2e sur service PostgreSQL, audit), Dependabot, README racine et apps, `docs/renouvellement.md`, vérification finale de bout en bout.

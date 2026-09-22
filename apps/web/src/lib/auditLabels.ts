@@ -1,0 +1,37 @@
+/** Libellés des actions journalisées par l'API (`AuditAction`) ; un code inconnu s'affiche tel quel. */
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  AUTH_LOGIN_SUCCEEDED: 'Connexion réussie',
+  AUTH_LOGIN_FAILED: 'Échec de connexion',
+  AUTH_ACCOUNT_LOCKED: 'Compte verrouillé',
+  AUTH_LOGOUT: 'Déconnexion',
+  DOCUMENT_VALIDATED: 'Document validé',
+  DOCUMENT_REJECTED: 'Document refusé',
+  RIB_SUBMITTED: 'RIB soumis',
+  RIB_SUBMISSION_CANCELLED: 'RIB retiré',
+  RIB_VALIDATED: 'RIB validé',
+  RIB_REJECTED: 'RIB refusé',
+  RIB_IBAN_REVEALED: 'IBAN consulté',
+  REQUEST_CREATED: 'Demande créée',
+  REQUEST_SUBMITTED: 'Demande envoyée',
+  REQUEST_WITHDRAWN: 'Demande retirée',
+  REQUEST_REVIEW_STARTED: 'Instruction commencée',
+  REQUEST_INFO_REQUESTED: 'Complément demandé',
+  REQUEST_APPROVED: 'Demande acceptée',
+  REQUEST_REJECTED: 'Demande refusée',
+  CAMPAIGN_CREATED: 'Campagne créée',
+  CAMPAIGN_UPDATED: 'Campagne modifiée',
+  CAMPAIGN_CLOSED: 'Campagne clôturée',
+  ACADEMIC_YEAR_CREATED: 'Année universitaire créée',
+  ACADEMIC_YEAR_UPDATED: 'Année universitaire modifiée',
+  APPLICANT_REGISTERED: 'Compte candidat créé',
+  EMAIL_VERIFIED: 'Adresse e-mail confirmée',
+  PASSWORD_RESET_REQUESTED: 'Réinitialisation demandée',
+  PASSWORD_RESET_COMPLETED: 'Mot de passe réinitialisé',
+}
+
+export const AUDIT_ACTOR_LABELS: Record<string, string> = {
+  STUDENT: 'Boursier',
+  APPLICANT: 'Candidat',
+  ADMIN: 'Agent',
+  SYSTEM: 'Système',
+}

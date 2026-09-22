@@ -3,9 +3,12 @@ import { AdminLayout } from './layouts/AdminLayout'
 import { ApplicantLayout } from './layouts/ApplicantLayout'
 import { PortalLayout } from './layouts/PortalLayout'
 import { AdminSessionRoot, ApplicantSessionRoot, StudentSessionRoot } from './layouts/SessionRoots'
+import { AdminAuditPage } from './pages/admin/AdminAuditPage'
+import { AdminCampaignsPage } from './pages/admin/AdminCampaignsPage'
 import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
 import { AdminRequestDetailPage } from './pages/admin/AdminRequestDetailPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
+import { AdminStudentsPage } from './pages/admin/AdminStudentsPage'
 import { AdminValidationsPage } from './pages/admin/AdminValidationsPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { ApplicantHomePage } from './pages/candidature/ApplicantHomePage'
@@ -79,6 +82,9 @@ export const routes: RouteObject[] = [
           { path: 'demandes', element: <AdminRequestsPage /> },
           { path: 'demandes/:requestId', element: <AdminRequestDetailPage /> },
           { path: 'validations', element: <AdminValidationsPage /> },
+          { path: 'etudiants', element: <AdminStudentsPage /> },
+          { path: 'campagnes', element: <AdminCampaignsPage /> },
+          { path: 'journal', element: <AdminAuditPage /> },
           { path: '*', element: <NotFoundPage embedded home="/admin" /> },
         ],
       },

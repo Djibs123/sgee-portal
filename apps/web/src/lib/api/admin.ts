@@ -189,3 +189,72 @@ export const rejectAdminRequest = (requestId: string, comment: string) =>
   sendJson<AdminRequestDetail>(`/admin/requests/${requestId}/reject`, 'POST', { comment })
 
 export const listAdminCampaigns = () => requestJson<ListResponse<AdminCampaign>>('/admin/campaigns')
+
+/* Étudiants, campagnes et journal d'audit */
+
+export type AdminStudentSummary = {
+  id: string
+  code: string
+  matricule: string | null
+  firstName: string
+  lastName: string
+  email: string
+  level: string | null
+  field: string | null
+  academicYear: string | null
+  scholarshipStatus: string
+  lastLoginAt: string | null
+}
+
+export const listAdminStudents = (params: { page?: number; pageSize?: number; search?: string }) =>
+  requestJson<Paginated<AdminStudentSummary>>(`/admin/students${toQueryString(params)}`)
+
+export type AcademicYear = {
+  id: string
+  code: string
+  label: string
+  startsOn: string
+  endsOn: string
+  isCurrent: boolean
+}
+
+export type CampaignPayload = {
+  type: 'RENEWAL' | 'NEW_APPLICATION'
+  academicYearId: string
+  title: string
+  instructions?: string
+  opensAt: string
+  closesAt: string
+  maxAgeNonDoctoral?: number
+  requirements: Array<{ documentTypeCode: string; cycles?: string[]; isRequired?: boolean }>
+}
+
+export type CampaignUpdate = Partial<Omit<CampaignPayload, 'type' | 'academicYearId'>>
+
+export const listAcademicYears = () => requestJson<ListResponse<AcademicYear>>('/admin/academic-years')
+
+export const createAcademicYear = (payload: { code: string; startsOn: string; endsOn: string; isCurrent?: boolean }) =>
+  sendJson<ListResponse<AcademicYear>>('/admin/academic-years', 'POST', payload)
+
+export const createAdminCampaign = (payload: CampaignPayload) => sendJson<CampaignView>('/admin/campaigns', 'POST', payload)
+
+export const updateAdminCampaign = (campaignId: string, update: CampaignUpdate) =>
+  sendJson<CampaignView>(`/admin/campaigns/${campaignId}`, 'PATCH', update)
+
+export const closeAdminCampaign = (campaignId: string) =>
+  sendJson<CampaignView>(`/admin/campaigns/${campaignId}/close`, 'POST')
+
+export type AuditLogEntry = {
+  id: string
+  actorType: 'STUDENT' | 'ADMIN' | 'APPLICANT' | 'SYSTEM'
+  actorId: string | null
+  action: string
+  entityType: string
+  entityId: string | null
+  metadata: unknown
+  ip: string | null
+  createdAt: string
+}
+
+export const listAuditLogs = (params: { page?: number; pageSize?: number; action?: string; entityType?: string; entityId?: string }) =>
+  requestJson<Paginated<AuditLogEntry>>(`/admin/audit-logs${toQueryString(params)}`)
