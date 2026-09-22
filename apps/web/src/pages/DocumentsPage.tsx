@@ -1,6 +1,8 @@
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { usePortalContext } from '../layouts/usePortalContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import {
   cancelStudentDocumentSubmission,
   downloadStudentDocument,
@@ -46,10 +48,6 @@ type UploadDocumentOption = {
   documentId?: string
 }
 
-type DocumentsPageProps = {
-  onRequiredDocumentsCountChange?: (count: number) => void
-}
-
 type Feedback = {
   type: 'success' | 'error'
   message: string
@@ -59,9 +57,10 @@ function getRequiredDocumentsCount(documents: StudentDocument[]) {
   return documents.filter((document) => document.status === 'REQUIRED').length
 }
 
-export function DocumentsPage({
-  onRequiredDocumentsCountChange,
-}: DocumentsPageProps) {
+export function DocumentsPage() {
+  useDocumentTitle('Documents')
+
+  const { setRequiredDocumentsCount: onRequiredDocumentsCountChange } = usePortalContext()
   const [documents, setDocuments] = useState<StudentDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)

@@ -35,7 +35,7 @@ pnpm dev               # API :3000, web :5173
 | L07 | API renouvellement boursier | fait | voir git log |
 | L08 | Comptes candidats, mails, mot de passe oublié | fait | voir git log |
 | L09 | API candidature et instruction admin | fait | voir git log |
-| L10 | Fondations front | à faire | |
+| L10 | Fondations front | fait | voir git log |
 | L11 | Portail boursier | à faire | |
 | L12 | Renouvellement boursier (front) | à faire | |
 | L13 | Candidature publique (front) | à faire | |
@@ -99,6 +99,9 @@ Réalisé : `src/scholarship/owner-requests.controller.ts` (fabrique : mêmes ro
 
 ### L10 — Fondations front
 React Router v7 (`/`, `/login`, `/portal/*`, `/candidature/*`, `/mot-de-passe-oublie`, `/reinitialiser`, `/admin/*`), layouts protégés, titre par page ; `src/lib/api/` découpé par domaine (en-tête CSRF, redirection 401) ; composants accessibles `Dialog`, `StatusMessage`, `StatusPill`, `Stepper`, `Pagination`, `EmptyState`, `FileField` ; tiroir de navigation mobile ; lien d'évitement, `:focus-visible`, contraste AA, cibles ≥ 24 px, `prefers-reduced-motion`, `aria-current` ; textes accentués ; `eslint-plugin-jsx-a11y` ; Vitest et Testing Library.
+Réalisé : React Router **8** (`createBrowserRouter` de `react-router`, `RouterProvider` de `react-router/dom`), routes dans `src/router.tsx` (export `routes` réutilisé par les tests) ; `src/lib/api/` (`client.ts` : `requestJson`, `sendJson`, `sendForm`, `downloadFile`, `saveDownloadedFile`, `getApiErrorMessage`, événement `SESSION_EXPIRED_EVENT` sur 401 ; `student.ts`, `admin.ts`) ; sessions `src/session/` (`createSession` + `useStudentSession` / `useAdminSession`, fournisseurs montés par `layouts/SessionRoots.tsx`) ; `layouts/PortalLayout.tsx` (garde, tiroir mobile, Échap, focus sur `#main-content` après navigation, `usePortalContext()` pour le badge documents), `AdminLayout.tsx` ; composants `src/components/ui/` (`Dialog`, `ConfirmDialog`, `ReasonDialog`, `StatusMessage`, `StatusPill`, `Stepper`, `Pagination`, `EmptyState`, `FileField`, `InfoList`/`InfoItem` en `dl`) ; utilitaires `lib/status.ts` (`toneOfStatus`), `lib/files.ts` (`validateFile`), `lib/useDocumentTitle.ts` ; plugin `eslint-plugin-jsx-a11y-x` (compatible ESLint 10) ; tests Vitest `src/components/ui/ui.test.tsx`, `src/layouts/PortalLayout.test.tsx` ; `--text-3` passé à ≈ 5,3:1.
+Restent pour L11 : `DocumentsPage` utilise encore `window.confirm` et son propre téléchargement ; `DashboardPage` et `PaiementsPage` à réécrire sur `/student/dashboard` et les montants bruts. Pour L14 : `AdminDashboardPage` utilise encore `window.prompt`. Le menu pointe déjà vers `/portal/renouvellement` (L12) et `/portal/notifications` (L11), qui affichent pour l'instant la page introuvable du portail.
+Décision utilisateur : le design visuel sera repris ensuite avec Claude Design ; les lots front visent la structure, l'accessibilité et le comportement.
 
 ### L11 — Portail boursier
 Dashboard sur données réelles ; paiements via `Intl.NumberFormat` ; documents avec re-dépôt des refusés et `Dialog` ; RIB actif et en attente ; page notifications.

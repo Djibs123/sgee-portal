@@ -1,5 +1,6 @@
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { getStudentPayments, type StudentPayment } from '../lib/api'
 import { useApiResource } from '../lib/useApiResource'
 
@@ -24,6 +25,8 @@ function groupPayments(payments: StudentPayment[]) {
 }
 
 export function PaiementsPage() {
+  useDocumentTitle('Paiements')
+
   const { data, loading, error } = useApiResource(getStudentPayments)
   const paiements = data?.items ?? []
   const grouped = groupPayments(paiements)

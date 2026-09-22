@@ -1,44 +1,42 @@
-type PublicFooterProps = {
-  onNavigate: (path: string) => void
-}
+import { Link } from 'react-router'
 
-export function PublicFooter({ onNavigate }: PublicFooterProps) {
+export function PublicFooter() {
   return (
     <footer className="public-footer" id="contact">
       <div className="public-container">
         <div className="public-contact-band">
           <div>
-            <span>Contact & assistance</span>
+            <span>Contact et assistance</span>
             <strong>01 71 25 00 61</strong>
-            <p>Infoline SVI disponible 24h/24 et 7j/7.</p>
+            <p>Infoline SVI disponible 24 h/24 et 7 j/7.</p>
           </div>
-            <a className="public-contact-button" href="tel:+33171250061">
-              Appeler l’infoline
-            </a>
+          <a className="public-contact-button" href="tel:+33171250061">
+            Appeler l’infoline
+          </a>
         </div>
         <div className="public-footer-grid">
           <div>
             <strong>SGEE</strong>
             <p>
-              Service de Gestion des Etudiants a l'Etranger, sous tutelle du
-              Ministere de l'Enseignement Superieur.
+              Service de Gestion des Étudiants sénégalais à l’Étranger, sous tutelle du
+              ministère de l’Enseignement supérieur.
             </p>
           </div>
-          <div>
+          <nav aria-label="Pied de page">
             <h3>Navigation</h3>
             <a href="#services">Services</a>
-            <a href="#actualites">Actualites</a>
+            <a href="#actualites">Actualités</a>
             <a href="#faq">FAQ</a>
-          </div>
-          <div>
+          </nav>
+          <nav aria-label="Accès aux espaces">
             <h3>Portail</h3>
-            <button type="button" onClick={() => onNavigate('/login')}>Mon espace boursier</button>
-            <button type="button" onClick={() => onNavigate('/portal')}>Paiements et documents</button>
-          </div>
+            <Link to="/login">Espace boursier</Link>
+            <Link to="/candidature">Espace candidat</Link>
+          </nav>
         </div>
         <div className="public-footer-bottom">
-          <span>© 2026 SGEE - Republique du Senegal.</span>
-          <div className="public-footer-flag"><span /><span /><span /></div>
+          <span>© 2026 SGEE – République du Sénégal.</span>
+          <div className="public-footer-flag" aria-hidden="true"><span /><span /><span /></div>
         </div>
       </div>
     </footer>

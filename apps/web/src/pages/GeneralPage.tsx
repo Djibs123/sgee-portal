@@ -1,73 +1,73 @@
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { InfoItem, InfoList } from '../components/ui/InfoList'
+import { StatusPill } from '../components/ui/StatusPill'
 import { getStudentProfile } from '../lib/api'
+import { toneOfStatus } from '../lib/status'
 import { useApiResource } from '../lib/useApiResource'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export function GeneralPage() {
+  useDocumentTitle('Mon dossier')
+
   const { data: student, loading, error } = useApiResource(getStudentProfile)
 
   return (
     <div>
       <div className="page-header">
-        <Breadcrumb label="Mon Dossier" />
-        <h1>Informations Generales</h1>
-        <p>Donnees personnelles et administratives de votre dossier</p>
+        <Breadcrumb label="Mon dossier" />
+        <h1>Informations générales</h1>
+        <p>Données personnelles et administratives de votre dossier</p>
       </div>
 
       <InlineState loading={loading} error={error} />
 
       {student && (
         <>
-          <div className="card" style={{ marginBottom: '14px' }}>
-            <div className="info-section-title">Identite &amp; Scolarite</div>
-            <div className="info-grid">
-              <div className="info-field"><label>Code Etudiant</label><p className="mono">{student.codeEtudiant}</p></div>
-              <div className="info-field"><label>N Matricule</label><p className="mono">{student.matricule}</p></div>
-              <div className="info-field"><label>Nom</label><p>{student.nom}</p></div>
-              <div className="info-field"><label>Prenom(s)</label><p>{student.prenom}</p></div>
-              <div className="info-field"><label>Annee Scolaire</label><p>{student.anneeScolaire}</p></div>
-              <div className="info-field"><label>Ville d'Etudes</label><p>{student.academie}</p></div>
-              <div className="info-field"><label>Pays d'Etudes</label><p>{student.pays}</p></div>
-              <div className="info-field"><label>Mode de Paiement</label><p>{student.modePaiement}</p></div>
-              <div className="info-field"><label>Budget</label><p>{student.budget}</p></div>
-            </div>
-          </div>
+          <section className="card" style={{ marginBottom: '14px' }} aria-labelledby="identity-title">
+            <h2 id="identity-title" className="info-section-title">Identité et scolarité</h2>
+            <InfoList>
+              <InfoItem label="Code étudiant" mono>{student.codeEtudiant}</InfoItem>
+              <InfoItem label="N° matricule" mono>{student.matricule}</InfoItem>
+              <InfoItem label="Nom">{student.nom}</InfoItem>
+              <InfoItem label="Prénom(s)">{student.prenom}</InfoItem>
+              <InfoItem label="Année universitaire">{student.anneeScolaire}</InfoItem>
+              <InfoItem label="Niveau">{student.niveau}</InfoItem>
+              <InfoItem label="Ville d’études">{student.academie}</InfoItem>
+              <InfoItem label="Pays d’études">{student.pays}</InfoItem>
+              <InfoItem label="Mode de paiement">{student.modePaiement}</InfoItem>
+              <InfoItem label="Budget">{student.budget}</InfoItem>
+            </InfoList>
+          </section>
 
-          <div className="card" style={{ marginBottom: '14px' }}>
-            <div className="info-section-title">Etat Civil</div>
-            <div className="info-grid">
-              <div className="info-field"><label>Date de Naissance</label><p>{student.dateNaissance}</p></div>
-              <div className="info-field"><label>Ville de Naissance</label><p>{student.villeNaissance}</p></div>
-              <div className="info-field"><label>Pays de Naissance</label><p>{student.paysNaissance}</p></div>
-              <div className="info-field"><label>Sexe</label><p>{student.sexe}</p></div>
-              <div className="info-field"><label>Situation Familiale</label><p>{student.situation}</p></div>
-            </div>
-          </div>
+          <section className="card" style={{ marginBottom: '14px' }} aria-labelledby="civil-title">
+            <h2 id="civil-title" className="info-section-title">État civil</h2>
+            <InfoList>
+              <InfoItem label="Date de naissance">{student.dateNaissance}</InfoItem>
+              <InfoItem label="Ville de naissance">{student.villeNaissance}</InfoItem>
+              <InfoItem label="Pays de naissance">{student.paysNaissance}</InfoItem>
+              <InfoItem label="Sexe">{student.sexe}</InfoItem>
+              <InfoItem label="Situation familiale">{student.situation}</InfoItem>
+            </InfoList>
+          </section>
 
-          <div className="card">
-            <div className="info-section-title">Allocation</div>
-            <div className="info-grid">
-              <div className="info-field">
-                <label>Montant Allocation</label>
-                <p style={{ fontWeight: 700, fontSize: '15px', color: 'var(--green)' }}>
-                  {student.allocationMensuelle}
-                </p>
-              </div>
-              <div className="info-field">
-                <label>Etat Allocation</label>
-                <p><span className="status-pill repris">{student.statutBourse}</span></p>
-              </div>
-              <div className="info-field"><label>Type Allocation</label><p>{student.typeBourse}</p></div>
-              <div className="info-field"><label>Date Debut</label><p>{student.dateDebut}</p></div>
-              <div className="info-field"><label>Date Fin</label><p>{student.dateFin}</p></div>
-              <div className="info-field"><label>Dernier Traitement</label><p>{student.dernierTraitement}</p></div>
-              <div className="info-field"><label>Date d'Arrivee</label><p>{student.dateArrivee}</p></div>
-              <div className="info-field">
-                <label>N d'Attribution</label>
-                <p className="mono" style={{ fontSize: '12.5px' }}>{student.numAttribution}</p>
-              </div>
-            </div>
-          </div>
+          <section className="card" aria-labelledby="allocation-title">
+            <h2 id="allocation-title" className="info-section-title">Allocation</h2>
+            <InfoList>
+              <InfoItem label="Montant de l’allocation">
+                <strong className="amount-highlight">{student.allocationMensuelle}</strong>
+              </InfoItem>
+              <InfoItem label="État de la bourse">
+                <StatusPill tone={toneOfStatus(student.scholarshipStatus)}>{student.statutBourse}</StatusPill>
+              </InfoItem>
+              <InfoItem label="Type d’allocation">{student.typeBourse}</InfoItem>
+              <InfoItem label="Date de début">{student.dateDebut}</InfoItem>
+              <InfoItem label="Date de fin">{student.dateFin}</InfoItem>
+              <InfoItem label="Dernier traitement">{student.dernierTraitement}</InfoItem>
+              <InfoItem label="Date d’arrivée">{student.dateArrivee}</InfoItem>
+              <InfoItem label="N° d’attribution" mono>{student.numAttribution}</InfoItem>
+            </InfoList>
+          </section>
         </>
       )}
     </div>

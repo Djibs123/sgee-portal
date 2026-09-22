@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { Breadcrumb } from '../components/Breadcrumb'
 import {
   getStudentDocuments,
@@ -9,11 +10,7 @@ import {
 } from '../lib/api'
 import { InlineState } from '../components/InlineState'
 import { useApiResource } from '../lib/useApiResource'
-import type { PageId } from '../types'
-
-type DashboardPageProps = {
-  onNav: (page: PageId) => void
-}
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 type DashboardData = {
   profile: StudentProfile
@@ -39,7 +36,9 @@ function getInitials(profile: StudentProfile) {
   return `${profile.prenom.charAt(0)}${profile.nom.charAt(0)}`.toUpperCase()
 }
 
-export function DashboardPage({ onNav }: DashboardPageProps) {
+export function DashboardPage() {
+  useDocumentTitle('Tableau de bord')
+
   const { data, loading, error } = useApiResource(getDashboardData)
   const profile = data?.profile
   const recent = data?.payments.slice(0, 4) ?? []
@@ -153,9 +152,9 @@ export function DashboardPage({ onNav }: DashboardPageProps) {
               <div className="card">
                 <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   Derniers paiements
-                  <button onClick={() => onNav('paiements')} style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--green)', cursor: 'pointer', background: 'none', border: 'none' }}>
-                    Voir tout →
-                  </button>
+                  <Link to="/portal/paiements" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--green)' }}>
+                    Voir tout<span aria-hidden="true"> →</span>
+                  </Link>
                 </div>
                 {recent.map((p, i) => (
                   <div key={i} className="recent-payment-row">

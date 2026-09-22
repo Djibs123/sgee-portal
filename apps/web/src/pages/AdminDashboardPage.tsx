@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  adminLogout,
   downloadAdminDocument,
   getAdminPendingDocuments,
   getAdminPendingRibs,
@@ -90,15 +89,8 @@ export function AdminDashboardPage({
     })
   }
 
-  const logout = async () => {
-    try {
-      await adminLogout()
-    } catch (reason) {
-      console.error(reason)
-    } finally {
-      onLogout()
-    }
-  }
+  // La déconnexion (API + session) est gérée par la route parente.
+  const logout = () => onLogout()
 
   const downloadDocument = async (document: AdminPendingDocument) => {
     setFeedback(null)

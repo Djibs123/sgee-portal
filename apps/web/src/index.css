@@ -12,7 +12,7 @@
   --border: oklch(0.91 0.005 240);
   --text: oklch(0.18 0.01 240);
   --text-2: oklch(0.48 0.01 240);
-  --text-3: oklch(0.68 0.01 240);
+  --text-3: oklch(0.53 0.01 240); /* ≈ 5,3:1 sur blanc (WCAG AA) ; ancienne valeur ≈ 2,9:1 */
   --sidebar-w: 252px;
   --header-h: 64px;
   --radius: 12px;
@@ -1259,3 +1259,215 @@ a { text-decoration: none; color: inherit; }
     gap: 20px;
   }
 }
+
+/* ==========================================================================
+   ACCESSIBILITÉ ET FONDATIONS (lot L10)
+   ========================================================================== */
+:root {
+  --focus-ring: oklch(0.55 0.2 250);
+  --danger: oklch(0.5 0.2 25);
+}
+
+/* Focus clavier toujours visible (WCAG 2.4.7) ; la souris n'affiche pas d'anneau. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+
+main:focus { outline: none; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: #fff;
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; }
+
+/* Cibles tactiles d'au moins 24 px (WCAG 2.5.8). */
+button, .btn, .copy-btn, .nav-item, .logout-btn { min-height: 32px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--green-mid); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--green-mid); color: var(--green); }
+.btn-danger { background: var(--danger); color: #fff; }
+
+.inline-state { color: var(--text-2); font-size: 14px; margin-bottom: 12px; }
+.inline-state.error { color: var(--danger); }
+
+.status-message { margin: 10px 0; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 600; }
+.status-message.success { background: var(--green-xlight); color: var(--green); border: 1px solid var(--green-light); }
+.status-message.error { background: oklch(0.97 0.02 25); color: var(--danger); border: 1px solid oklch(0.9 0.06 25); }
+.status-message.info { background: oklch(0.95 0.04 245); color: oklch(0.35 0.1 245); border: 1px solid oklch(0.88 0.07 245); }
+
+.status-pill.neutral { background: var(--bg); color: var(--text-2); }
+
+.field { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.field input, .field select, .field textarea {
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  padding: 9px 11px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.field textarea { resize: vertical; }
+.field small { font-weight: 400; color: var(--text-3); }
+.field input[aria-invalid='true'], .field textarea[aria-invalid='true'] { border-color: var(--danger); }
+.field-error { color: var(--danger); font-size: 12.5px; font-weight: 600; }
+
+/* Boîtes de dialogue natives */
+.dialog {
+  width: min(92vw, 520px);
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px oklch(0 0 0 / 0.25);
+  color: var(--text);
+}
+.dialog::backdrop { background: oklch(0 0 0 / 0.45); }
+.dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+.dialog-header h2 { font-size: 17px; }
+.dialog-close { width: 36px; height: 36px; border-radius: 8px; font-size: 22px; color: var(--text-2); }
+.dialog-close:hover { background: var(--bg); }
+.dialog-description { padding: 8px 20px 0; color: var(--text-2); font-size: 14px; }
+.dialog-body { padding: 14px 20px 0; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 18px 20px 20px; }
+.dialog-body .dialog-footer { padding: 18px 0 20px; }
+
+/* Assistant par étapes */
+.stepper { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin-bottom: 20px; }
+.stepper-step > span, .stepper-step > button {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 6px; border-radius: 99px;
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1.5px solid var(--border);
+}
+.stepper-index {
+  display: inline-grid; place-items: center; width: 24px; height: 24px;
+  border-radius: 99px; background: var(--bg); font-size: 12px; font-weight: 800;
+}
+.stepper-step.current > span { border-color: var(--green); color: var(--green); }
+.stepper-step.current .stepper-index { background: var(--green); color: #fff; }
+.stepper-step.done .stepper-index { background: var(--green-light); color: var(--green); }
+
+.pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; font-size: 13.5px; }
+
+.empty-state { padding: 28px; text-align: center; color: var(--text-2); border: 1.5px dashed var(--border); border-radius: var(--radius); }
+.empty-state-title { font-weight: 700; color: var(--text); margin-bottom: 4px; }
+
+.not-found { max-width: 480px; display: grid; gap: 12px; justify-items: start; }
+
+.login-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 13px; }
+.login-links a { color: var(--green); font-weight: 600; text-decoration: underline; }
+
+/* Navigation latérale en liste */
+.sidebar-list { list-style: none; }
+.nav-item { text-decoration: none; width: 100%; }
+
+/* Bouton de menu : visible uniquement sur mobile */
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  .menu-toggle { display: inline-flex; }
+  .header { padding: 0 12px; gap: 10px; }
+  /* Tiroir de navigation : la sidebar n'est plus masquée, elle glisse depuis la gauche. */
+  .sidebar {
+    display: flex;
+    z-index: 150;
+    width: min(82vw, 290px);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0.2s;
+    box-shadow: 4px 0 24px oklch(0 0 0 / 0.12);
+  }
+  .sidebar.open { transform: none; visibility: visible; }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    background: oklch(0 0 0 / 0.35);
+  }
+}
+
+/* Section candidatures de l'accueil */
+.public-candidatures h2 { font-size: 15px; color: oklch(0.46 0.12 75); }
+.public-candidatures a {
+  display: inline-flex;
+  padding: 8px 16px;
+  border-radius: 99px;
+  background: oklch(0.95 0.08 88);
+  border: 1px solid oklch(0.86 0.11 88);
+  color: oklch(0.38 0.12 75);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* Respect de la préférence « réduire les animations » (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Listes de données en lecture seule (dl/dt/dd) */
+.info-field dt { font-size: 11.5px; color: var(--text-3); font-weight: 600; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+.info-field dd { font-size: 14px; font-weight: 500; color: var(--text); margin: 0; }
+.info-field dd.mono { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.04em; }
+.amount-highlight { font-size: 15px; color: var(--green); }

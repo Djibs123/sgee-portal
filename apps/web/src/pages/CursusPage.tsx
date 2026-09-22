@@ -1,9 +1,12 @@
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { getStudentCursus } from '../lib/api'
 import { useApiResource } from '../lib/useApiResource'
 
 export function CursusPage() {
+  useDocumentTitle('Cursus académique')
+
   const { data, loading, error } = useApiResource(getStudentCursus)
   const cursus = data?.items ?? []
 

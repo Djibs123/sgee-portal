@@ -1,47 +1,45 @@
-type PublicHeroProps = {
-  onNavigate: (path: string) => void
-}
+import { Link } from 'react-router'
 
-export function PublicHero({ onNavigate }: PublicHeroProps) {
+export function PublicHero() {
   return (
     <>
-      <section className="public-hero" id="accueil">
+      <section className="public-hero" id="accueil" aria-labelledby="hero-title">
         <div className="public-container public-hero-grid">
           <div className="public-hero-copy">
-            <div className="public-eyebrow">Portail institutionnel SGEE</div>
-            <h1>Service de Gestion des Etudiants a l'Etranger</h1>
+            <p className="public-eyebrow">Portail institutionnel SGEE</p>
+            <h1 id="hero-title">Service de Gestion des Étudiants sénégalais à l’Étranger</h1>
             <p>
-              Un point d'acces officiel pour suivre votre dossier de bourse,
-              consulter vos paiements, deposer vos justificatifs et actualiser
-              vos informations bancaires.
+              Un point d’accès officiel pour suivre votre dossier de bourse, renouveler
+              votre bourse chaque année, consulter vos paiements, déposer vos justificatifs
+              et actualiser vos informations bancaires.
             </p>
             <div className="public-hero-actions">
-              <button type="button" className="public-primary-btn" onClick={() => onNavigate('/portal')}>
+              <Link className="public-primary-btn" to="/portal">
                 Portail des boursiers
-              </button>
+              </Link>
               <a className="public-secondary-btn" href="#demarches">
-                Voir les demarches
+                Voir les démarches
               </a>
             </div>
           </div>
-          <aside className="public-access-card" aria-label="Acces rapide">
-            <div className="public-card-label">Acces securise</div>
-            <h2>Votre espace boursier</h2>
+          <aside className="public-access-card" aria-labelledby="access-title">
+            <p className="public-card-label">Accès sécurisé</p>
+            <h2 id="access-title">Votre espace boursier</h2>
             <p>Connectez-vous avec vos identifiants SGEE pour consulter les informations de votre dossier.</p>
-            <button type="button" className="public-card-btn" onClick={() => onNavigate('/login')}>
-              Acceder a mon compte
-            </button>
-            <span>Authentification par session securisee.</span>
+            <Link className="public-card-btn" to="/login">
+              Accéder à mon compte
+            </Link>
+            <span>Authentification par session sécurisée.</span>
           </aside>
         </div>
       </section>
-      <section className="public-candidatures" id="candidatures">
+      <section className="public-candidatures" id="candidatures" aria-labelledby="candidatures-title">
         <div className="public-container public-candidatures-inner">
           <div>
-            <strong>Candidatures</strong>
-            <p>Les candidatures ouvrent selon un calendrier defini par l'administration.</p>
+            <h2 id="candidatures-title">Candidatures</h2>
+            <p>Les candidatures ouvrent selon le calendrier défini par l’administration.</p>
           </div>
-          <span>Campagne actuellement fermee</span>
+          <Link to="/candidature">Espace candidat</Link>
         </div>
       </section>
     </>

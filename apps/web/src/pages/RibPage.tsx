@@ -1,6 +1,11 @@
 import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { InfoItem, InfoList } from '../components/ui/InfoList'
+import { StatusPill } from '../components/ui/StatusPill'
+import { toneOfStatus } from '../lib/status'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import {
   cancelPendingStudentRib,
   getApiErrorMessage,
@@ -39,37 +44,26 @@ function withoutEmptyFields(form: UpdateStudentRibPayload): UpdateStudentRibPayl
   ) as UpdateStudentRibPayload
 }
 
-function statusClass(rib: StudentRib) {
-  switch (rib.status) {
-    case 'PENDING':
-      return 'pending'
-    case 'VALIDATED':
-      return 'validated'
-    case 'REJECTED':
-      return 'rejected'
-  }
-}
-
 function RibDetails({ rib }: { rib: StudentRib }) {
   return (
-    <div className="info-grid">
-      <div className="info-field"><label>Banque</label><p style={{ fontWeight: 700 }}>{rib.banque}</p></div>
-      <div className="info-field"><label>Titulaire</label><p>{rib.titulaire}</p></div>
-      <div className="info-field"><label>IBAN</label><p className="mono">{rib.ibanMasked}</p></div>
-      <div className="info-field"><label>BIC</label><p className="mono">{rib.bic || '—'}</p></div>
-      <div className="info-field">
-        <label>Statut</label>
-        <p><span className={`status-pill ${statusClass(rib)}`}>{rib.statusLabel}</span></p>
-      </div>
-      <div className="info-field">
-        <label>{rib.status === 'VALIDATED' ? 'Validé le' : 'Soumis le'}</label>
-        <p>{formatDate(rib.status === 'VALIDATED' ? rib.reviewedAt : rib.submittedAt)}</p>
-      </div>
-    </div>
+    <InfoList>
+      <InfoItem label="Banque">{rib.banque}</InfoItem>
+      <InfoItem label="Titulaire">{rib.titulaire}</InfoItem>
+      <InfoItem label="IBAN" mono>{rib.ibanMasked}</InfoItem>
+      <InfoItem label="BIC" mono>{rib.bic}</InfoItem>
+      <InfoItem label="Statut">
+        <StatusPill tone={toneOfStatus(rib.status)}>{rib.statusLabel}</StatusPill>
+      </InfoItem>
+      <InfoItem label={rib.status === 'VALIDATED' ? 'Validé le' : 'Soumis le'}>
+        {formatDate(rib.status === 'VALIDATED' ? rib.reviewedAt : rib.submittedAt)}
+      </InfoItem>
+    </InfoList>
   )
 }
 
 export function RibPage() {
+  useDocumentTitle('Coordonnées bancaires')
+
   const [state, setState] = useState<StudentRibState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -78,6 +72,8 @@ export function RibPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     let ignore = false
@@ -134,15 +130,16 @@ export function RibPage() {
   }
 
   const cancelPending = async () => {
-    if (!window.confirm('Annuler votre demande de modification de RIB ?')) {
-      return
-    }
+    setCancelling(true)
 
     try {
       setState(await cancelPendingStudentRib())
       setFeedback('Votre demande de modification a été annulée.')
     } catch (reason) {
       setSaveError(getApiErrorMessage(reason, 'Impossible d’annuler la demande'))
+    } finally {
+      setCancelling(false)
+      setConfirmingCancel(false)
     }
   }
 
@@ -198,7 +195,7 @@ export function RibPage() {
             <section className="card" style={{ marginBottom: '14px' }} aria-labelledby="rib-pending-title">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
                 <h2 id="rib-pending-title" className="info-section-title" style={{ marginBottom: 0, flex: 1 }}>Modification en attente</h2>
-                <button className="copy-btn" type="button" onClick={() => void cancelPending()}>
+                <button className="copy-btn" type="button" onClick={() => setConfirmingCancel(true)}>
                   Annuler la demande
                 </button>
               </div>
@@ -262,6 +259,16 @@ export function RibPage() {
           )}
         </>
       )}
+      <ConfirmDialog
+        open={confirmingCancel}
+        title="Annuler la demande de modification ?"
+        message="Votre RIB actif reste inchangé. Vous pourrez soumettre une nouvelle demande plus tard."
+        confirmLabel="Annuler la demande"
+        tone="danger"
+        busy={cancelling}
+        onConfirm={() => void cancelPending()}
+        onCancel={() => setConfirmingCancel(false)}
+      />
     </div>
   )
 }
