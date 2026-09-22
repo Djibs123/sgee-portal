@@ -1,5 +1,6 @@
 import type { StudentDocumentStatus, StudentRibStatus } from '../../types'
 import { downloadFile, requestJson, sendForm, sendJson } from './client'
+import type { NotificationItem } from './notifications'
 
 export type StudentProfile = {
   id: string
@@ -132,6 +133,107 @@ export type UpdateStudentRibPayload = {
   telephone?: string
   email?: string
 }
+
+export type RequestSummary = {
+  id: string
+  reference: string
+  type: 'RENEWAL' | 'NEW_APPLICATION'
+  status: string
+  statusLabel: string
+  campaignTitle: string
+  targetLevel: string | null
+  targetLevelLabel: string | null
+  submittedAt: string | null
+  decidedAt: string | null
+  updatedAt: string
+}
+
+export type CampaignPhase = 'UPCOMING' | 'OPEN' | 'CLOSED'
+
+export type CampaignView = {
+  id: string
+  type: 'RENEWAL' | 'NEW_APPLICATION'
+  title: string
+  instructions: string | null
+  academicYear: { id: string; code: string; label: string }
+  opensAt: string
+  closesAt: string
+  closedAt: string | null
+  maxAgeNonDoctoral: number | null
+  phase: CampaignPhase
+  phaseLabel: string
+  requirements: Array<{
+    documentTypeCode: string
+    label: string
+    description: string | null
+    cycles: string[]
+    isRequired: boolean
+  }>
+}
+
+export type EligibilityIssue = { code: string; message: string }
+
+export type Eligibility = {
+  eligible: boolean
+  blockers: EligibilityIssue[]
+  warnings: EligibilityIssue[]
+}
+
+export type CurrentCampaign = {
+  campaign: CampaignView | null
+  request: RequestSummary | null
+  eligibility: Eligibility | null
+}
+
+/** Synthèse calculée par l'API : aucune donnée codée en dur côté interface. */
+export type StudentDashboard = {
+  student: {
+    firstName: string
+    lastName: string
+    studentNumber: string
+    matricule: string | null
+    level: string | null
+    levelCode: string | null
+    field: string | null
+    academy: string | null
+    country: string | null
+    academicYear: string | null
+  }
+  scholarship: {
+    status: string
+    statusLabel: string
+    type: string | null
+    paymentMethod: string | null
+    startDate: string | null
+    endDate: string | null
+    progressPercent: number | null
+    monthlyAllocation: string | null
+    monthlyAllocationCfa: number | null
+    currency: string
+    attributionNumber: string | null
+  }
+  payments: {
+    currentYearCount: number
+    currentYearTotal: string
+    currency: string
+    last: { month: string; academicYear: string; amount: string; currency: string; paidAt: string } | null
+    nextEstimatedAt: string | null
+  }
+  documents: {
+    toProvide: Array<{ id: string; name: string; status: 'REQUIRED' | 'REJECTED'; reviewComment: string | null }>
+  }
+  rib: {
+    active: { bankName: string; ibanMasked: string } | null
+    hasPendingChange: boolean
+  }
+  renewal: CurrentCampaign
+  notifications: {
+    unreadCount: number
+    latest: NotificationItem[]
+  }
+}
+
+export const getStudentDashboard = () => requestJson<StudentDashboard>('/student/dashboard')
 
 export const getMe = () => requestJson<StudentProfile>('/me')
 

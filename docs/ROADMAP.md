@@ -36,7 +36,7 @@ pnpm dev               # API :3000, web :5173
 | L08 | Comptes candidats, mails, mot de passe oublié | fait | voir git log |
 | L09 | API candidature et instruction admin | fait | voir git log |
 | L10 | Fondations front | fait | voir git log |
-| L11 | Portail boursier | à faire | |
+| L11 | Portail boursier | fait | voir git log |
 | L12 | Renouvellement boursier (front) | à faire | |
 | L13 | Candidature publique (front) | à faire | |
 | L14 | Back-office (front) | à faire | |
@@ -105,6 +105,8 @@ Décision utilisateur : le design visuel sera repris ensuite avec Claude Design 
 
 ### L11 — Portail boursier
 Dashboard sur données réelles ; paiements via `Intl.NumberFormat` ; documents avec re-dépôt des refusés et `Dialog` ; RIB actif et en attente ; page notifications.
+Réalisé : `DashboardPage` sur `GET /student/dashboard` (alertes calculées : campagne, pièces, RIB ; barre de progression `role="progressbar"`) ; `lib/format.ts` (`formatMoney` par devise dont XOF, `formatDate` en UTC, `sumAmounts` en centimes) + tests ; `PaiementsPage` (totaux par devise sur montants bruts, tableau avec `caption` et `scope`) ; `CursusPage` en liste ordonnée avec résultat ; `DocumentsPage` (cible : pièce attendue, pièce refusée ou type du catalogue ; `ConfirmDialog` ; boutons avec `aria-label` incluant le document) ; `components/NotificationsPanel.tsx` réutilisable (espace `student` ou `applicant`) + `pages/NotificationsPage.tsx` ; `lib/api/notifications.ts` ; badge des non lues dans le menu ; `useApiResource` gagne `reload` et `setData` ; tests `src/pages/portal.test.tsx` (14 tests front au total).
+Leçon : un texte `.sr-only` commençant par une espace est fusionné au texte visible dans le calcul du nom accessible ; utiliser `aria-label` qui commence par le libellé visible.
 
 ### L12 — Renouvellement boursier (front)
 Assistant en 4 étapes (situation N+1, résultats N-1, pièces, récapitulatif et attestation), sauvegarde automatique, frise de suivi, complément demandé, retrait.

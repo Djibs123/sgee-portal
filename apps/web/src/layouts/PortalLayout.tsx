@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { Header } from '../components/Header'
 import { Sidebar } from '../components/Sidebar'
-import { getStudentDocuments } from '../lib/api'
+import { getStudentDocuments, listNotifications } from '../lib/api'
 import { useStudentSession } from '../session/sessions'
 import { FullPageMessage } from './FullPageMessage'
 import { SkipLink } from './SkipLink'
 
 export type PortalOutletContext = {
   setRequiredDocumentsCount: (count: number) => void
+  setUnreadNotificationsCount: (count: number) => void
 }
 
 /** Espace boursier : accès réservé aux sessions boursier valides. */
@@ -20,6 +21,7 @@ export function PortalLayout() {
   const firstRender = useRef(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [requiredDocumentsCount, setRequiredDocumentsCount] = useState(0)
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0)
 
   useEffect(() => {
     if (!profile) {
@@ -34,6 +36,13 @@ export function PortalLayout() {
           setRequiredDocumentsCount(
             response.items.filter((document) => ['REQUIRED', 'REJECTED'].includes(document.status)).length,
           )
+        }
+      })
+      .catch(() => undefined)
+    listNotifications('student', { pageSize: 1 })
+      .then((response) => {
+        if (active) {
+          setUnreadNotificationsCount(response.unreadCount)
         }
       })
       .catch(() => undefined)
@@ -94,10 +103,13 @@ export function PortalLayout() {
           onNavigate={() => setMenuOpen(false)}
           onLogout={() => void logout()}
           requiredDocumentsCount={requiredDocumentsCount}
+          unreadNotificationsCount={unreadNotificationsCount}
         />
         {menuOpen && <div className="sidebar-backdrop" aria-hidden="true" onClick={() => setMenuOpen(false)} />}
         <main id="main-content" ref={mainRef} tabIndex={-1} className="main">
-          <Outlet context={{ setRequiredDocumentsCount } satisfies PortalOutletContext} />
+          <Outlet
+            context={{ setRequiredDocumentsCount, setUnreadNotificationsCount } satisfies PortalOutletContext}
+          />
         </main>
       </div>
     </>

@@ -10,6 +10,7 @@ import { DocumentsPage } from './pages/DocumentsPage'
 import { GeneralPage } from './pages/GeneralPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 import { PaiementsPage } from './pages/PaiementsPage'
 import { PublicHomePage } from './pages/PublicHomePage'
 import { RibPage } from './pages/RibPage'
@@ -31,6 +32,7 @@ export const routes: RouteObject[] = [
           { path: 'paiements', element: <PaiementsPage /> },
           { path: 'rib', element: <RibPage /> },
           { path: 'documents', element: <DocumentsPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: '*', element: <NotFoundPage embedded /> },
         ],
       },

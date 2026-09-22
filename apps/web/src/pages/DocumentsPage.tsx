@@ -1,272 +1,144 @@
-import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { EmptyState } from '../components/ui/EmptyState'
+import { FileField } from '../components/ui/FileField'
+import { StatusMessage } from '../components/ui/StatusMessage'
+import { StatusPill } from '../components/ui/StatusPill'
 import { usePortalContext } from '../layouts/usePortalContext'
-import { useDocumentTitle } from '../lib/useDocumentTitle'
 import {
   cancelStudentDocumentSubmission,
   downloadStudentDocument,
+  getApiErrorMessage,
+  getDocumentTypes,
   getStudentDocuments,
+  saveDownloadedFile,
   uploadStudentDocument,
   type StudentDocument,
 } from '../lib/api'
+import { validateFile } from '../lib/files'
+import { toneOfStatus } from '../lib/status'
+import { useApiResource } from '../lib/useApiResource'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_FILE_TYPES = new Set([
-  'application/pdf',
-  'image/png',
-  'image/jpeg',
-])
+type Feedback = { tone: 'success' | 'error'; message: string } | null
 
-const OTHER_DOCUMENT_OPTION = {
-  value: 'free:AUTRE',
-  type: 'AUTRE',
-  label: 'Autre',
-}
-
-function isMissing(document: StudentDocument) {
-  return document.status === 'REQUIRED'
-}
-
-function getDocumentStatusClass(document: StudentDocument) {
-  switch (document.status) {
-    case 'PENDING':
-      return 'pending'
-    case 'VALIDATED':
-      return 'validated'
-    case 'REJECTED':
-      return 'rejected'
-    case 'REQUIRED':
-      return 'required'
-  }
-}
-
-type UploadDocumentOption = {
-  value: string
-  type: string
-  label: string
-  documentId?: string
-}
-
-type Feedback = {
-  type: 'success' | 'error'
-  message: string
-} | null
-
-function getRequiredDocumentsCount(documents: StudentDocument[]) {
-  return documents.filter((document) => document.status === 'REQUIRED').length
-}
+/** Pièces attendues par le SGEE : jamais déposées ou refusées (à remplacer). */
+const needsFile = (document: StudentDocument) =>
+  document.status === 'REQUIRED' || document.status === 'REJECTED'
 
 export function DocumentsPage() {
   useDocumentTitle('Documents')
 
-  const { setRequiredDocumentsCount: onRequiredDocumentsCountChange } = usePortalContext()
-  const [documents, setDocuments] = useState<StudentDocument[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [selectedOption, setSelectedOption] = useState(OTHER_DOCUMENT_OPTION.value)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const { setRequiredDocumentsCount } = usePortalContext()
+  const { data, loading, error, setData } = useApiResource(getStudentDocuments)
+  const { data: types } = useApiResource(getDocumentTypes)
+  const [target, setTarget] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [fileFieldKey, setFileFieldKey] = useState(0)
   const [uploading, setUploading] = useState(false)
-  const [uploadFeedback, setUploadFeedback] = useState<Feedback>(null)
-  const [downloadError, setDownloadError] = useState('')
-  const [downloadingId, setDownloadingId] = useState<string | null>(null)
-  const [cancelingId, setCancelingId] = useState<string | null>(null)
-  const uploadOptions = useMemo<UploadDocumentOption[]>(() => {
-    const options = documents
-      .filter((document) => document.status === 'REQUIRED')
-      .map((document) => ({
-        value: `document:${document.id}`,
-        type: document.type,
-        label: document.nom,
-        documentId: document.id,
-      }))
+  const [feedback, setFeedback] = useState<Feedback>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<StudentDocument | null>(null)
+  const selectRef = useRef<HTMLSelectElement>(null)
+  const selectId = useId()
 
-    return [...options, OTHER_DOCUMENT_OPTION]
-  }, [documents])
-  const selectedDocumentOption =
-    uploadOptions.find((option) => option.value === selectedOption) ??
-    uploadOptions[0] ??
-    OTHER_DOCUMENT_OPTION
+  const documents = data?.items ?? []
+  const toProvide = documents.filter(needsFile)
+  const options = [
+    ...toProvide.map((document) => ({
+      value: `doc:${document.id}`,
+      label: document.status === 'REJECTED' ? `${document.nom} (à remplacer)` : document.nom,
+    })),
+    ...(types?.items ?? []).map((type) => ({ value: `type:${type.code}`, label: `Autre pièce : ${type.label}` })),
+  ]
+  const selected = options.some((option) => option.value === target) ? target : (options[0]?.value ?? '')
 
-  const applyDocuments = useCallback((items: StudentDocument[]) => {
-    setDocuments(items)
-    onRequiredDocumentsCountChange?.(getRequiredDocumentsCount(items))
-  }, [onRequiredDocumentsCountChange])
-
-  const clearUploadFeedback = () => {
-    setUploadFeedback(null)
+  const applyDocuments = (items: StudentDocument[]) => {
+    setData({ items })
+    setRequiredDocumentsCount(items.filter(needsFile).length)
   }
 
-  useEffect(() => {
-    let ignore = false
-
-    async function loadDocuments() {
-      try {
-        setLoading(true)
-        setError(null)
-        const response = await getStudentDocuments()
-
-        if (!ignore) {
-          applyDocuments(response.items)
-        }
-      } catch (requestError) {
-        if (!ignore) {
-          setError(
-            requestError instanceof Error
-              ? requestError
-              : new Error('Documents unavailable'),
-          )
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadDocuments()
-
-    return () => {
-      ignore = true
-    }
-  }, [applyDocuments])
-
-  const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-
-    clearUploadFeedback()
-    setSelectedFile(file)
-  }
-
-  const uploadDocument = async (event: FormEvent<HTMLFormElement>) => {
+  const upload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const form = event.currentTarget
+    setFeedback(null)
 
-    clearUploadFeedback()
+    const validationError = validateFile(file)
 
-    if (!selectedFile) {
-      setUploadFeedback({
-        type: 'error',
-        message: "Selectionnez un fichier a envoyer",
-      })
-      return
-    }
+    setFileError(validationError)
 
-    if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      setUploadFeedback({
-        type: 'error',
-        message: 'Le fichier depasse la taille autorisee',
-      })
-      return
-    }
-
-    if (!ALLOWED_FILE_TYPES.has(selectedFile.type)) {
-      setUploadFeedback({
-        type: 'error',
-        message: 'Type de fichier non autorise',
-      })
+    if (validationError || !file || !selected) {
       return
     }
 
     const formData = new FormData()
+    const [kind, value] = selected.split(':')
 
-    formData.append('type', selectedDocumentOption.type)
-    formData.append('label', selectedDocumentOption.label)
+    if (kind === 'doc') {
+      const document = documents.find((item) => item.id === value)
 
-    if (selectedDocumentOption.documentId) {
-      formData.append('documentId', selectedDocumentOption.documentId)
+      formData.append('documentId', value)
+      formData.append('type', document?.type ?? 'AUTRE')
+      formData.append('label', document?.nom ?? '')
+    } else {
+      formData.append('type', value)
+      formData.append('label', types?.items.find((type) => type.code === value)?.label ?? '')
     }
 
-    formData.append('file', selectedFile)
-
+    formData.append('file', file)
     setUploading(true)
 
     try {
       await uploadStudentDocument(formData)
-    } catch {
-      setUploadFeedback({
-        type: 'error',
-        message: "Impossible d'ajouter le document",
-      })
-      setUploading(false)
-      return
-    }
-
-    setUploadFeedback({
-      type: 'success',
-      message: 'Document envoyé avec succès. En attente de validation.',
-    })
-
-    try {
-      const response = await getStudentDocuments()
-
-      applyDocuments(response.items)
-    } catch (refreshError) {
-      console.error(
-        'Document envoyé, mais rafraîchissement impossible',
-        refreshError,
-      )
-    }
-
-    try {
-      setSelectedFile(null)
-      form.reset()
-    } catch (resetError) {
-      console.error('Document envoyé, mais reset du formulaire impossible', resetError)
+      applyDocuments((await getStudentDocuments()).items)
+      setFeedback({ tone: 'success', message: 'Document envoyé. Il est en attente de validation par le SGEE.' })
+      setFile(null)
+      setTarget('')
+      setFileFieldKey((key) => key + 1)
+    } catch (reason) {
+      setFeedback({ tone: 'error', message: getApiErrorMessage(reason, 'Impossible d’envoyer le document.') })
     } finally {
       setUploading(false)
     }
   }
 
-  const downloadDocument = async (document: StudentDocument) => {
-    setDownloadError('')
-    setDownloadingId(document.id)
+  const prepareReplacement = (document: StudentDocument) => {
+    setTarget(`doc:${document.id}`)
+    setFeedback(null)
+    selectRef.current?.focus()
+    selectRef.current?.scrollIntoView({ block: 'center' })
+  }
+
+  const download = async (document: StudentDocument) => {
+    setBusyId(document.id)
+    setFeedback(null)
 
     try {
-      const download = await downloadStudentDocument(document.id)
-      const url = URL.createObjectURL(download.blob)
-      const link = window.document.createElement('a')
-
-      link.href = url
-      link.download = download.fileName
-      window.document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
-    } catch {
-      setDownloadError('Impossible de telecharger ce document')
+      saveDownloadedFile(await downloadStudentDocument(document.id))
+    } catch (reason) {
+      setFeedback({ tone: 'error', message: getApiErrorMessage(reason, 'Téléchargement impossible.') })
     } finally {
-      setDownloadingId(null)
+      setBusyId(null)
     }
   }
 
-  const cancelSubmission = async (document: StudentDocument) => {
-    const confirmed = window.confirm(
-      'Annuler ce depot ? Vous pourrez envoyer un nouveau fichier.',
-    )
-
-    if (!confirmed) {
+  const confirmCancellation = async () => {
+    if (!cancelTarget) {
       return
     }
 
-    setCancelingId(document.id)
-    setUploadFeedback(null)
+    setBusyId(cancelTarget.id)
 
     try {
-      const response = await cancelStudentDocumentSubmission(document.id)
-
-      applyDocuments(response.items)
-      setUploadFeedback({
-        type: 'success',
-        message: 'Depot annule',
-      })
-    } catch {
-      setUploadFeedback({
-        type: 'error',
-        message: "Impossible d'annuler le depot",
-      })
+      applyDocuments((await cancelStudentDocumentSubmission(cancelTarget.id)).items)
+      setFeedback({ tone: 'success', message: 'Dépôt annulé.' })
+    } catch (reason) {
+      setFeedback({ tone: 'error', message: getApiErrorMessage(reason, 'Impossible d’annuler le dépôt.') })
     } finally {
-      setCancelingId(null)
+      setBusyId(null)
+      setCancelTarget(null)
     }
   }
 
@@ -275,111 +147,115 @@ export function DocumentsPage() {
       <div className="page-header">
         <Breadcrumb label="Documents" />
         <h1>Documents</h1>
-        <p>Pieces justificatives de votre dossier</p>
+        <p>Pièces justificatives de votre dossier de bourse</p>
       </div>
 
       <InlineState loading={loading} error={error} />
-      {downloadError && (
-        <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginBottom: '12px' }}>
-          {downloadError}
-        </p>
-      )}
 
-      <form className="card" onSubmit={uploadDocument} style={{ marginBottom: '14px' }}>
-        <div className="info-section-title">Ajouter un document</div>
-        <div className="info-grid">
-          <label className="info-field">
-            <span>Type de document</span>
+      <form className="card" onSubmit={upload} style={{ marginBottom: '14px' }} noValidate aria-labelledby="upload-title">
+        <h2 id="upload-title" className="info-section-title">Déposer un document</h2>
+        <div className="form-grid">
+          <div className="field">
+            <label htmlFor={selectId}>Pièce concernée</label>
             <select
-              value={selectedDocumentOption.value}
+              id={selectId}
+              ref={selectRef}
+              value={selected}
               onChange={(event) => {
-                clearUploadFeedback()
-                setSelectedOption(event.target.value)
+                setTarget(event.target.value)
+                setFeedback(null)
               }}
             >
-              {uploadOptions.map((documentOption) => (
-                <option key={documentOption.value} value={documentOption.value}>
-                  {documentOption.label}
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="info-field">
-            <span>Fichier</span>
-            <input type="file" accept=".pdf,image/png,image/jpeg" onChange={selectFile} />
-          </label>
+          </div>
+          <FileField
+            key={fileFieldKey}
+            label="Fichier"
+            error={fileError}
+            disabled={uploading}
+            onChange={(nextFile) => {
+              setFile(nextFile)
+              setFileError(null)
+            }}
+          />
         </div>
 
-        {uploadFeedback?.type === 'error' ? (
-          <p style={{ color: 'var(--red-sn)', fontSize: '13px', marginTop: '12px' }}>{uploadFeedback.message}</p>
-        ) : uploadFeedback?.type === 'success' ? (
-          <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 700, marginTop: '12px' }}>{uploadFeedback.message}</p>
-        ) : null}
+        <StatusMessage tone={feedback?.tone ?? 'success'} message={feedback?.message} />
 
-        <div style={{ marginTop: '14px' }}>
-          <button className="copy-btn" type="submit" disabled={uploading}>
-            {uploading ? 'Envoi...' : 'Ajouter un document'}
-          </button>
-        </div>
+        <button className="btn btn-primary" type="submit" disabled={uploading || !selected}>
+          {uploading ? 'Envoi…' : 'Envoyer le document'}
+        </button>
       </form>
 
-      <div style={{ display: 'grid', gap: '10px' }}>
-        {documents.map((document, i) => {
-          const missing = isMissing(document)
-          const statusClass = getDocumentStatusClass(document)
+      {data && documents.length === 0 && <EmptyState title="Aucun document pour le moment" />}
 
-          return (
-            <div key={document.id ?? `${document.type}-${i}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px' }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 8,
-                background: missing ? 'oklch(0.97 0.06 80)' : 'var(--green-light)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: missing ? 'oklch(0.50 0.15 70)' : 'var(--green)',
-                flexShrink: 0,
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>{document.nom}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
-                  {document.dateDepot ? `Depose le ${document.dateDepot}` : 'Document requis'}
-                </div>
-              </div>
-              <span className={`status-pill ${statusClass}`} style={{ fontSize: '11px' }}>
-                {document.statusLabel}
-              </span>
+      <ul className="document-list" aria-label="Mes documents">
+        {documents.map((document) => (
+          <li key={document.id} className="card document-row">
+            <div className="document-main">
+              <p className="document-name">{document.nom}</p>
+              <p className="document-meta">
+                {document.dateDepot ? `Déposé le ${document.dateDepot}` : 'Pas encore déposé'}
+                {document.obligatoire ? ' – obligatoire' : ''}
+              </p>
               {document.status === 'REJECTED' && document.reviewComment && (
-                <p style={{ color: 'var(--red-sn)', fontSize: '12px', maxWidth: '220px' }}>
-                  Motif: {document.reviewComment}
-                </p>
+                <p className="document-comment">Motif du refus : {document.reviewComment}</p>
               )}
+            </div>
+            <StatusPill tone={toneOfStatus(document.status)}>{document.statusLabel}</StatusPill>
+            <div className="document-actions">
               {document.isDownloadable && (
                 <button
-                  className="copy-btn"
                   type="button"
-                  onClick={() => void downloadDocument(document)}
-                  disabled={downloadingId === document.id}
+                  className="btn btn-secondary"
+                  onClick={() => void download(document)}
+                  disabled={busyId === document.id}
+                  aria-label={`Télécharger ${document.nom}`}
                 >
-                  {downloadingId === document.id ? 'Telechargement...' : 'Telecharger'}
+                  Télécharger
+                </button>
+              )}
+              {needsFile(document) && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => prepareReplacement(document)}
+                  aria-label={`${document.status === 'REJECTED' ? 'Remplacer' : 'Déposer'} ${document.nom}`}
+                >
+                  {document.status === 'REJECTED' ? 'Remplacer' : 'Déposer'}
                 </button>
               )}
               {document.status === 'PENDING' && (
                 <button
-                  className="copy-btn"
                   type="button"
-                  onClick={() => void cancelSubmission(document)}
-                  disabled={cancelingId === document.id}
+                  className="btn btn-secondary"
+                  onClick={() => setCancelTarget(document)}
+                  disabled={busyId === document.id}
+                  aria-label={`Annuler le dépôt ${document.nom}`}
                 >
-                  {cancelingId === document.id ? 'Annulation...' : 'Annuler'}
+                  Annuler le dépôt
                 </button>
               )}
             </div>
-          )
-        })}
-      </div>
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={cancelTarget !== null}
+        title="Annuler ce dépôt ?"
+        message={`Le fichier envoyé pour « ${cancelTarget?.nom ?? ''} » sera supprimé. Vous pourrez en déposer un nouveau.`}
+        confirmLabel="Annuler le dépôt"
+        tone="danger"
+        busy={busyId !== null && busyId === cancelTarget?.id}
+        onConfirm={() => void confirmCancellation()}
+        onCancel={() => setCancelTarget(null)}
+      />
     </div>
   )
 }

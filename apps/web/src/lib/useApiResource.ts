@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export type ApiResourceState<T> = {
   data: T | null
@@ -6,12 +6,17 @@ export type ApiResourceState<T> = {
   error: Error | null
 }
 
-export function useApiResource<T>(load: () => Promise<T>): ApiResourceState<T> {
+/**
+ * Charge une ressource au montage (et à chaque `reload`). `load` doit être stable
+ * (fonction de module ou `useCallback`), sinon la requête serait relancée à chaque rendu.
+ */
+export function useApiResource<T>(load: () => Promise<T>) {
   const [state, setState] = useState<ApiResourceState<T>>({
     data: null,
     loading: true,
     error: null,
   })
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -19,23 +24,15 @@ export function useApiResource<T>(load: () => Promise<T>): ApiResourceState<T> {
     load()
       .then((result) => {
         if (active) {
-          setState({
-            data: result,
-            loading: false,
-            error: null,
-          })
+          setState({ data: result, loading: false, error: null })
         }
       })
       .catch((reason: unknown) => {
-        const nextError =
-          reason instanceof Error ? reason : new Error('API request failed')
-        console.error(nextError)
-
         if (active) {
           setState({
             data: null,
             loading: false,
-            error: nextError,
+            error: reason instanceof Error ? reason : new Error('Requête impossible'),
           })
         }
       })
@@ -43,7 +40,17 @@ export function useApiResource<T>(load: () => Promise<T>): ApiResourceState<T> {
     return () => {
       active = false
     }
-  }, [load])
+  }, [load, version])
 
-  return state
+  const reload = useCallback(() => {
+    setState((current) => ({ ...current, loading: true }))
+    setVersion((current) => current + 1)
+  }, [])
+
+  /** Remplace les données localement (réponse d'une mutation) sans nouvel appel. */
+  const setData = useCallback((data: T) => {
+    setState({ data, loading: false, error: null })
+  }, [])
+
+  return { ...state, reload, setData }
 }
