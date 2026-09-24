@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
 // jsdom n'implémente pas entièrement <dialog> : comportement minimal pour les tests.
@@ -19,6 +19,9 @@ if (!HTMLDialogElement.prototype.close) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {}
 }
+
+// Les pages chargées à la demande (back-office) laissent le temps à l'import dynamique.
+configure({ asyncUtilTimeout: 3000 })
 
 afterEach(() => {
   cleanup()

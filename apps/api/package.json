@@ -4,6 +4,11 @@
   "description": "",
   "author": "",
   "private": true,
+  "files": [
+    "dist",
+    "prisma",
+    "prisma.config.ts"
+  ],
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",

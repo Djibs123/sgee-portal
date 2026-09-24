@@ -1,15 +1,9 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
+import { FullPageMessage } from './layouts/FullPageMessage'
 import { AdminLayout } from './layouts/AdminLayout'
 import { ApplicantLayout } from './layouts/ApplicantLayout'
 import { PortalLayout } from './layouts/PortalLayout'
 import { AdminSessionRoot, ApplicantSessionRoot, StudentSessionRoot } from './layouts/SessionRoots'
-import { AdminAuditPage } from './pages/admin/AdminAuditPage'
-import { AdminCampaignsPage } from './pages/admin/AdminCampaignsPage'
-import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
-import { AdminRequestDetailPage } from './pages/admin/AdminRequestDetailPage'
-import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
-import { AdminStudentsPage } from './pages/admin/AdminStudentsPage'
-import { AdminValidationsPage } from './pages/admin/AdminValidationsPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { ApplicantHomePage } from './pages/candidature/ApplicantHomePage'
 import { ApplicantLoginPage } from './pages/candidature/ApplicantLoginPage'
@@ -29,6 +23,13 @@ import { PublicHomePage } from './pages/PublicHomePage'
 import { RenewalPage } from './pages/RenewalPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { RibPage } from './pages/RibPage'
+
+type AdminPages = typeof import('./pages/admin')
+
+/** Page du back-office chargée à la demande (fragment `pages/admin`). */
+const adminPage = (name: keyof AdminPages) => async () => ({
+  Component: (await import('./pages/admin'))[name],
+})
 
 /** Chaque espace a son fournisseur de session : aucune requête de session sur les pages publiques. */
 export const routes: RouteObject[] = [
@@ -77,14 +78,15 @@ export const routes: RouteObject[] = [
       {
         path: '/admin',
         element: <AdminLayout />,
+        hydrateFallbackElement: <FullPageMessage>Chargement de l’administration…</FullPageMessage>,
         children: [
-          { index: true, element: <AdminOverviewPage /> },
-          { path: 'demandes', element: <AdminRequestsPage /> },
-          { path: 'demandes/:requestId', element: <AdminRequestDetailPage /> },
-          { path: 'validations', element: <AdminValidationsPage /> },
-          { path: 'etudiants', element: <AdminStudentsPage /> },
-          { path: 'campagnes', element: <AdminCampaignsPage /> },
-          { path: 'journal', element: <AdminAuditPage /> },
+          { index: true, lazy: adminPage('AdminOverviewPage') },
+          { path: 'demandes', lazy: adminPage('AdminRequestsPage') },
+          { path: 'demandes/:requestId', lazy: adminPage('AdminRequestDetailPage') },
+          { path: 'validations', lazy: adminPage('AdminValidationsPage') },
+          { path: 'etudiants', lazy: adminPage('AdminStudentsPage') },
+          { path: 'campagnes', lazy: adminPage('AdminCampaignsPage') },
+          { path: 'journal', lazy: adminPage('AdminAuditPage') },
           { path: '*', element: <NotFoundPage embedded home="/admin" /> },
         ],
       },

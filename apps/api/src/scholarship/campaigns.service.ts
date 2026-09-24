@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -102,6 +103,23 @@ export class CampaignsService {
 
   async create(data: CreateCampaignDto, actor: AuditActor) {
     assertDates(data.opensAt, data.closesAt);
+
+    // Une campagne par type et par année universitaire (renouvellement annuel).
+    const existing = await this.prisma.campaign.findUnique({
+      where: {
+        type_academicYearId: {
+          type: data.type,
+          academicYearId: data.academicYearId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'Une campagne de ce type existe déjà pour cette année universitaire',
+      );
+    }
 
     const campaign = await this.prisma.$transaction(async (tx) => {
       const created = await tx.campaign.create({

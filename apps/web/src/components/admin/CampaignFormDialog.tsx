@@ -34,6 +34,10 @@ type Form = {
   copyFrom: string
 }
 
+/** Une campagne par type et par année : seules les années sans campagne de ce type sont proposées. */
+const freeYears = (type: string, campaigns: AdminCampaign[], years: AcademicYear[]) =>
+  years.filter((year) => !campaigns.some((item) => item.type === type && item.academicYear.id === year.id))
+
 const initialForm = (campaign: AdminCampaign | null, campaigns: AdminCampaign[], years: AcademicYear[]): Form =>
   campaign
     ? {
@@ -48,7 +52,7 @@ const initialForm = (campaign: AdminCampaign | null, campaigns: AdminCampaign[],
       }
     : {
         type: 'RENEWAL',
-        academicYearId: years.find((year) => year.isCurrent)?.id ?? years[0]?.id ?? '',
+        academicYearId: freeYears('RENEWAL', campaigns, years)[0]?.id ?? '',
         title: '',
         instructions: '',
         firstDay: '',
@@ -66,13 +70,19 @@ export function CampaignFormDialog({ open, campaign, campaigns, years, onSaved, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sameType = campaigns.filter((item) => item.type === form.type)
+  const availableYears = freeYears(form.type, campaigns, years)
 
   const set = (key: keyof Form) => (value: string) =>
     setForm((current) => ({
       ...current,
       [key]: value,
-      // Changer de type propose les pièces de la dernière campagne de ce type.
-      ...(key === 'type' ? { copyFrom: campaigns.find((item) => item.type === value)?.id ?? '' } : {}),
+      // Changer de type propose une année libre et les pièces de la dernière campagne de ce type.
+      ...(key === 'type'
+        ? {
+            copyFrom: campaigns.find((item) => item.type === value)?.id ?? '',
+            academicYearId: freeYears(value, campaigns, years)[0]?.id ?? '',
+          }
+        : {}),
     }))
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -88,7 +98,7 @@ export function CampaignFormDialog({ open, campaign, campaigns, years, onSaved, 
       instructions: form.instructions.trim() || undefined,
       opensAt: opensAtFromDay(form.firstDay),
       closesAt: closesAtFromLastDay(form.lastDay),
-      maxAgeNonDoctoral: form.maxAge ? Number(form.maxAge) : undefined,
+      maxAgeNonDoctoral: form.type === 'NEW_APPLICATION' && form.maxAge ? Number(form.maxAge) : undefined,
     }
 
     setBusy(true)
@@ -133,8 +143,15 @@ export function CampaignFormDialog({ open, campaign, campaigns, years, onSaved, 
                 </option>
               ))}
             </SelectField>
-            <SelectField name="academicYearId" label="Année universitaire" required value={form.academicYearId} onChange={set('academicYearId')}>
-              {years.map((year) => (
+            <SelectField
+              name="academicYearId"
+              label="Année universitaire"
+              required
+              value={form.academicYearId}
+              onChange={set('academicYearId')}
+              error={availableYears.length === 0 ? 'Toutes les années ont déjà une campagne de ce type : créez d’abord l’année suivante.' : null}
+            >
+              {availableYears.map((year) => (
                 <option key={year.id} value={year.id}>
                   {year.label}
                 </option>
@@ -146,15 +163,17 @@ export function CampaignFormDialog({ open, campaign, campaigns, years, onSaved, 
         <TextField name="instructions" label="Consignes aux demandeurs" multiline value={form.instructions} onChange={set('instructions')} maxLength={2000} />
         <TextField name="firstDay" label="Premier jour" type="date" required value={form.firstDay} onChange={set('firstDay')} />
         <TextField name="lastDay" label="Dernier jour (inclus)" type="date" required value={form.lastDay} onChange={set('lastDay')} />
-        <TextField
-          name="maxAge"
-          label="Âge maximum hors doctorat"
-          type="number"
-          inputMode="numeric"
-          value={form.maxAge}
-          onChange={set('maxAge')}
-          hint="Laisser vide pour ne pas appliquer de limite (renouvellement)."
-        />
+        {form.type === 'NEW_APPLICATION' && (
+          <TextField
+            name="maxAge"
+            label="Âge maximum hors doctorat"
+            type="number"
+            inputMode="numeric"
+            value={form.maxAge}
+            onChange={set('maxAge')}
+            hint="30 ans si le champ est vide."
+          />
+        )}
         {!campaign && (
           <SelectField name="copyFrom" label="Pièces demandées" emptyLabel="Aucune pièce" value={form.copyFrom} onChange={set('copyFrom')} hint="Reprises de la campagne choisie.">
             {sameType.map((item) => (

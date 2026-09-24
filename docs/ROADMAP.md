@@ -40,7 +40,7 @@ pnpm dev               # API :3000, web :5173
 | L12 | Renouvellement boursier (front) | fait | voir git log |
 | L13 | Candidature publique (front) | fait | voir git log |
 | L14 | Back-office (front) | fait | voir git log (L14a, L14b) |
-| L15 | DevOps et documentation | à faire | |
+| L15 | DevOps et documentation | fait | voir git log |
 
 ## Fiches
 
@@ -125,3 +125,8 @@ Limite connue : l'édition fine des pièces d'une campagne (cycles, ajout d'un t
 
 ### L15 — DevOps et documentation
 Dockerfiles multi-étapes non-root, nginx avec fallback SPA et en-têtes, `docker-compose.yml` (PostgreSQL 18, api, web, volume uploads), CI GitHub Actions (lint, typecheck, tests, build, e2e sur service PostgreSQL, audit), Dependabot, README racine et apps, `docs/renouvellement.md`, vérification finale de bout en bout.
+Réalisé : `apps/api/Dockerfile` (build pnpm puis `pnpm deploy --prod`, utilisateur `node`, tini, healthcheck sur `/api/health` ; champ `files` ajouté au paquet api) ; `apps/web/Dockerfile` + `apps/web/nginx/` (nginx non privilégié, repli SPA, cache des fichiers fingerprintés, en-têtes de sécurité inclus par location) ; `docker-compose.yml` (PostgreSQL 18, service `migrate` one-shot, api et web en `read_only` sans capacités, Mailpit, volumes `pgdata` et `uploads`) + `.env.example` ; `.dockerignore` ; CI `.github/workflows/ci.yml` (front, API avec service PostgreSQL 18 via `TEST_DATABASE_URL`, `pnpm audit --prod`, build des deux images) et `.github/dependabot.yml` ; README racine, api et web réécrits ; `docs/renouvellement.md` (campagnes, machine à états, blocages et alertes, pièces, parcours) ; back-office chargé à la demande (`pages/admin/index.ts`, fragment de 35 kB).
+Sécurité des dépendances : `pnpm audit --prod` signalait 5 failles hautes non corrigées en amont (multer 2.2.0 épinglé par @nestjs/platform-express 11.2.5 ; mysql2 et deepmerge-ts via le CLI Prisma 7.10). Correctif par `overrides` dans `pnpm-workspace.yaml` (multer ^2.4.0, mysql2 ^3.23.1, deepmerge-ts ^8.0.0) : audit propre, suites vertes, `prisma generate` et `migrate status` vérifiés.
+Règle métier ajoutée : une campagne par type et par année universitaire renvoie désormais un message explicite (409) ; le formulaire ne propose que les années libres.
+Vérification finale : API compilée puis déployée en mode production (`pnpm deploy --prod`) et démarrée sur la base de dev, 22 contrôles OK (health, en-têtes Helmet, Swagger masqué, CSRF exigé, connexion et révocation de session, file et filtres d'instruction, campagnes, années, étudiants, journal d'audit, validations, parcours boursier et candidat). Suites : API 37 unitaires + 50 e2e, front 45 tests, lint, typecheck, build.
+Limites connues : Docker absent du poste, les images n'ont pas été construites localement (la CI les construit) ; PGlite provoque de rares plantages au démontage des e2e sous Windows (1 fois sur 3 exécutions, code 0xC0000409) — la CI utilise un vrai PostgreSQL 18.

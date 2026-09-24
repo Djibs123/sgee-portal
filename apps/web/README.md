@@ -1,73 +1,41 @@
-# React + TypeScript + Vite
+# Front SGEE
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application monopage React 19 + Vite 8 + React Router 8. Trois espaces cohabitent : site public,
+espace boursier, espace candidat et back-office, chacun avec sa propre session.
 
-Currently, two official plugins are available:
+## Organisation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Dossier | Rôle |
+|---|---|
+| `router.tsx` | toutes les routes ; le back-office est chargé à la demande |
+| `session/` | contexte de session par espace (`useStudentSession`, `useApplicantSession`, `useAdminSession`) |
+| `layouts/` | mises en page protégées, gabarit des pages d'accès, lien d'évitement |
+| `lib/api/` | client HTTP par domaine (en-tête CSRF, redirection sur session expirée) |
+| `lib/` | formatage, libellés métier, dates de campagne, chargement de ressources |
+| `components/ui/` | briques accessibles (dialogue natif, messages annoncés, pastilles, étapes, pagination, champs) |
+| `components/requests/` | assistant de demande partagé par le boursier et le candidat |
+| `components/admin/`, `pages/admin/` | back-office |
 
-## React Compiler
+## Conventions
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Accessibilité (WCAG 2.2 AA)** : un seul `h1` par page, focus visible, focus déplacé sur le titre
+  d'étape et sur le premier champ invalide, messages dans des régions `aria-live`, dialogues `<dialog>`
+  natifs, données en lecture seule en listes de définitions, noms accessibles commençant par le texte
+  visible, cibles d'au moins 24 px, `prefers-reduced-motion` respecté.
+- **État dans l'URL** : filtres, pagination et demande consultée sont des paramètres d'URL (liens
+  partageables, bouton Précédent).
+- **Pas de `window.alert`, `confirm` ni `prompt`** : `ConfirmDialog` et `ReasonDialog`.
+- Les libellés métier viennent de l'API quand elle les fournit (`statusLabel`, `phaseLabel`).
 
-## Expanding the ESLint configuration
+## Commandes
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm --filter web dev        # serveur de développement (5173)
+pnpm --filter web test       # Vitest + Testing Library
+pnpm --filter web lint       # ESLint, dont les règles jsx-a11y
+pnpm --filter web typecheck
+pnpm --filter web build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+`VITE_API_BASE_URL` pointe vers l'API (`http://localhost:3000/api` par défaut, `/api` derrière
+nginx). En développement, l'API doit autoriser l'origine du front (`FRONTEND_ORIGIN`).

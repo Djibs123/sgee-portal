@@ -7,3 +7,12 @@ onlyBuiltDependencies:
   - esbuild
   - prisma
   - unrs-resolver
+
+# Correctifs de sécurité transitifs (pnpm audit --prod), à retirer quand les dépendances
+# directes embarqueront des versions corrigées :
+# - multer : épinglé en 2.2.0 par @nestjs/platform-express 11.2.5 (déni de service sur multipart) ;
+# - mysql2, deepmerge-ts : dépendances du CLI Prisma 7.10 (migrations), non utilisées à l'exécution.
+overrides:
+  multer: ^2.4.0
+  mysql2: ^3.23.1
+  deepmerge-ts: ^8.0.0

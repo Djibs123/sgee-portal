@@ -413,7 +413,14 @@ describe('Renouvellement annuel côté boursier (e2e)', () => {
     const campaign = created.body as Body;
 
     expect(campaign.phase).toBe('OPEN');
-    await superAdmin.post('/api/admin/campaigns').send(payload).expect(409);
+    const duplicate = await superAdmin
+      .post('/api/admin/campaigns')
+      .send(payload)
+      .expect(409);
+
+    expect((duplicate.body as Body).message).toBe(
+      'Une campagne de ce type existe déjà pour cette année universitaire',
+    );
 
     const closed = await superAdmin
       .post(`/api/admin/campaigns/${campaign.id as string}/close`)

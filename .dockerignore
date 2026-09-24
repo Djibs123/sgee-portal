@@ -1,0 +1,14 @@
+# Contexte de build minimal : ni dépendances locales, ni builds, ni secrets, ni données.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/uploads
+apps/api/src/generated
+.git
+.github
+.vscode
+docs
+*.log

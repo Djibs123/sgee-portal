@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Workspace pnpm : un seul lockfile à la racine couvre apps/api et apps/web.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      nestjs:
+        patterns: ["@nestjs/*"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+      react:
+        patterns: ["react", "react-dom", "react-router", "@types/react*"]
+      tests:
+        patterns: ["vitest", "@testing-library/*", "jest", "ts-jest", "@types/jest", "supertest", "jsdom"]
+      lint:
+        patterns: ["eslint*", "@eslint/*", "typescript-eslint", "prettier"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+    schedule:
+      interval: weekly

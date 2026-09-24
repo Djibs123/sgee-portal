@@ -7,6 +7,7 @@ const admin = { id: 'ad1', email: 'agent@sgee.sn', name: 'Aminata Sow', role: 'A
 const superAdmin = { ...admin, role: 'SUPER_ADMIN' }
 
 const year = { id: 'y1', code: '2026-2027', label: '2026/2027', startsOn: '2026-09-01', endsOn: '2027-08-31', isCurrent: true }
+const nextYear = { id: 'y2', code: '2027-2028', label: '2027/2028', startsOn: '2027-09-01', endsOn: '2028-08-31', isCurrent: false }
 
 const renewal = {
   id: 'c1',
@@ -31,7 +32,7 @@ const adminApi = (table: Record<string, Reply>, profile: unknown = superAdmin) =
 
 const campaignsApi = {
   'GET /admin/campaigns': { items: [renewal] },
-  'GET /admin/academic-years': { items: [year] },
+  'GET /admin/academic-years': { items: [nextYear, year] },
 }
 
 describe('Back-office : étudiants, campagnes et journal', () => {
@@ -96,6 +97,11 @@ describe('Back-office : étudiants, campagnes et journal', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Nouvelle campagne' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Nouvelle campagne' })
+    const yearSelect = within(dialog).getByRole('combobox', { name: /Année universitaire/ })
+
+    // Une campagne par type et par année : 2026/2027 a déjà son renouvellement.
+    expect(within(yearSelect).queryByRole('option', { name: '2026/2027' })).not.toBeInTheDocument()
+    expect(yearSelect).toHaveValue('y2')
 
     await userEvent.type(within(dialog).getByLabelText(/^Titre/), 'Renouvellement 2027/2028')
     fireEvent.change(within(dialog).getByLabelText(/^Premier jour/), { target: { value: '2027-09-01' } })
@@ -105,7 +111,7 @@ describe('Back-office : étudiants, campagnes et journal', () => {
     expect(await screen.findByText('Campagne « Renouvellement 2027/2028 » créée.')).toBeInTheDocument()
     expect(bodyOf(fetchMock, 'POST', '/admin/campaigns')).toEqual({
       type: 'RENEWAL',
-      academicYearId: 'y1',
+      academicYearId: 'y2',
       title: 'Renouvellement 2027/2028',
       opensAt: '2027-09-01T00:00:00.000Z',
       closesAt: '2028-01-01T00:00:00.000Z',
