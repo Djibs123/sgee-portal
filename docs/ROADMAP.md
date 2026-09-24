@@ -130,3 +130,29 @@ Sécurité des dépendances : `pnpm audit --prod` signalait 5 failles hautes non
 Règle métier ajoutée : une campagne par type et par année universitaire renvoie désormais un message explicite (409) ; le formulaire ne propose que les années libres.
 Vérification finale : API compilée puis déployée en mode production (`pnpm deploy --prod`) et démarrée sur la base de dev, 22 contrôles OK (health, en-têtes Helmet, Swagger masqué, CSRF exigé, connexion et révocation de session, file et filtres d'instruction, campagnes, années, étudiants, journal d'audit, validations, parcours boursier et candidat). Suites : API 37 unitaires + 50 e2e, front 45 tests, lint, typecheck, build.
 Limites connues : Docker absent du poste, les images n'ont pas été construites localement (la CI les construit) ; PGlite provoque de rares plantages au démontage des e2e sous Windows (1 fois sur 3 exécutions, code 0xC0000409) — la CI utilise un vrai PostgreSQL 18.
+
+## Audit de revue (2026-09-24)
+
+Relecture indépendante du dépôt après L15. Résultats :
+
+- **Corrigé (bloquant)** : `UPLOAD_DIR` absolu cassait les pièces justificatives en conteneur.
+  `LocalDiskStorage` faisait `join(process.cwd(), UPLOAD_DIR)` → `/app/app/uploads/...`, hors du
+  volume monté et hors du système de fichiers accessible en écriture (`read_only: true`) : dépôt et
+  téléchargement en échec. `storageRoot()` utilise désormais `resolve` (relatif ou absolu accepté),
+  l'image passe un chemin relatif, et trois tests unitaires couvrent les deux cas.
+- **Corrigé (moyen)** : aucune frontière d'erreur côté front. Une erreur de rendu ou un fragment
+  `pages/admin` devenu introuvable après un déploiement donnait une page blanche. `layouts/AppError.tsx`
+  est branché en `errorElement` racine, reconnaît le cas « nouvelle version » et propose un rechargement.
+- **Vérifié sans anomalie** : portée des données par propriétaire (`loadOwned`, `findOwnedDocument`),
+  gardes et rôles sur tous les contrôleurs, garde CSRF, sessions (TTL, inactivité, révocation),
+  décisions d'instruction (transaction + condition sur le statut lu), versionnage des RIB,
+  AES-256-GCM + HKDF + empreinte HMAC, jetons à usage unique (SHA-256, expiration), e-mails en texte
+  brut (pas d'injection HTML), masquage des cookies et mots de passe dans les logs, absence de
+  `dangerouslySetInnerHTML`, de `console.*` résiduel et de stockage navigateur.
+- **À traiter plus tard** : champ facultatif non effaçable une fois rempli (`trimOptional` côté API,
+  valeurs vides ignorées côté assistant) ; pas de purge ni de rétention pour `AuditLog`, `Notification`
+  et les pièces refusées ; recherche admin en `contains` insensible à la casse (index trigramme à
+  prévoir au-delà de quelques dizaines de milliers de lignes) ; pas de test front sur le dépôt de
+  pièces ni sur la page RIB ; pas de contrôle d'accessibilité automatisé (axe) ; `src/legacy`
+  (15 lignes) n'est importé nulle part — jalon volontaire pour l'intégration ASP.
+

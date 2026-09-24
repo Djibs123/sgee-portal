@@ -31,13 +31,22 @@ function isInsideDirectory(filePath: string, directoryPath: string) {
   );
 }
 
+/**
+ * Racine de stockage. `UPLOAD_DIR` peut être relatif au répertoire de travail
+ * (recommandé : les clés enregistrées en base restent portables) ou absolu :
+ * `resolve` traite les deux cas, là où `join` produirait `/app/app/uploads`.
+ */
+export function storageRoot(cwd: string, uploadDir: string) {
+  return resolve(cwd, uploadDir.replace(/[\\/]+$/, ''));
+}
+
 @Injectable()
 export class LocalDiskStorage extends DocumentStorage {
   private readonly logger = new Logger(LocalDiskStorage.name);
   private readonly relativeRoot = env.UPLOAD_DIR.replace(/[\\/]+$/, '');
 
   private get root() {
-    return join(process.cwd(), this.relativeRoot);
+    return storageRoot(process.cwd(), this.relativeRoot);
   }
 
   async save(content: Buffer, fileName: string): Promise<StoredObject> {

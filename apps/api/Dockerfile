@@ -20,7 +20,7 @@ FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 COPY apps/api apps/api
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --offline --filter api...
@@ -34,12 +34,14 @@ FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates tini \
   && rm -rf /var/lib/apt/lists/*
+# UPLOAD_DIR reste relatif au WORKDIR : les clés enregistrées en base sont portables
+# et le répertoire tombe dans le volume monté sur /app/uploads.
 ENV NODE_ENV=production \
     PORT=3000 \
-    UPLOAD_DIR=/app/uploads/student-documents
+    UPLOAD_DIR=uploads/student-documents
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./
-RUN mkdir -p /app/uploads && chown node:node /app/uploads
+RUN mkdir -p /app/uploads/student-documents && chown -R node:node /app/uploads
 # Utilisateur non privilégié fourni par l'image officielle.
 USER node
 VOLUME ["/app/uploads"]

@@ -1,4 +1,5 @@
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, Outlet, type RouteObject } from 'react-router'
+import { AppError } from './layouts/AppError'
 import { FullPageMessage } from './layouts/FullPageMessage'
 import { AdminLayout } from './layouts/AdminLayout'
 import { ApplicantLayout } from './layouts/ApplicantLayout'
@@ -32,7 +33,7 @@ const adminPage = (name: keyof AdminPages) => async () => ({
 })
 
 /** Chaque espace a son fournisseur de session : aucune requête de session sur les pages publiques. */
-export const routes: RouteObject[] = [
+const spaces: RouteObject[] = [
   { path: '/', element: <PublicHomePage /> },
   { path: '/mot-de-passe-oublie', element: <ForgotPasswordPage /> },
   { path: '/reinitialiser', element: <ResetPasswordPage /> },
@@ -93,6 +94,14 @@ export const routes: RouteObject[] = [
     ],
   },
   { path: '*', element: <NotFoundPage /> },
+]
+
+/**
+ * Une seule route englobante porte `errorElement` : une erreur de rendu, un chargement de
+ * fragment en échec ou une exception de routeur affichent une page utilisable, jamais une page blanche.
+ */
+export const routes: RouteObject[] = [
+  { element: <Outlet />, errorElement: <AppError />, children: spaces },
 ]
 
 export const router = createBrowserRouter(routes)
