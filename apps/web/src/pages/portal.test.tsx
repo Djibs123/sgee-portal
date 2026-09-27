@@ -128,7 +128,11 @@ describe('Pages du portail boursier', () => {
     expect(screen.getByText('1 document(s) à fournir')).toBeInTheDocument()
     expect(normalize(screen.getByRole('heading', { name: 'Allocation mensuelle' }).nextElementSibling?.textContent ?? null)).toBe('221,05 €')
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '62')
-    expect(screen.getByText(/Déposez votre demande au plus tard le 31 décembre 2026/)).toBeInTheDocument()
+    // L'échéance est portée une seule fois, par la bande de campagne : période et temps restant.
+    const band = screen.getByRole('region', { name: 'Renouvellement 2026/2027' })
+
+    expect(within(band).getByText(/Dépôt du 1 septembre 2026 au 31 décembre 2026 inclus/)).toBeInTheDocument()
+    expect(within(band).getByText(/pour déposer$/)).toBeInTheDocument()
   })
 
   it('totalise les paiements par devise sans reparser de texte', async () => {

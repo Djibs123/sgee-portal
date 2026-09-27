@@ -9,7 +9,6 @@ import { PublicServices } from '../components/public/PublicServices'
 export function PublicHomePage() {
   return (
     <div className="public-page">
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <PublicHeader />
       <main>
         <PublicHero />

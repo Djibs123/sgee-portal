@@ -47,7 +47,6 @@ export function AdminLayout() {
   return (
     <>
       <SkipLink />
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <div className="admin-shell">
         <header className="admin-header">
           <div>

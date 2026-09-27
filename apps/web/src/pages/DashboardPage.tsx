@@ -1,8 +1,9 @@
 import { Link } from 'react-router'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { InlineState } from '../components/InlineState'
+import { CampaignBand } from '../components/CampaignBand'
 import { getStudentDashboard, type StudentDashboard } from '../lib/api'
-import { formatDate, formatLongDate, formatMoney, formatMonthYear } from '../lib/format'
+import { formatDate, formatMoney, formatMonthYear } from '../lib/format'
 import { useApiResource } from '../lib/useApiResource'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
@@ -14,42 +15,10 @@ type Alert = {
   link?: { to: string; label: string }
 }
 
-/** Dernier jour inclus d'une campagne dont `closesAt` est la borne exclue. */
-const lastDayOf = (closesAt: string) => new Date(new Date(closesAt).getTime() - 1)
-
-/** Alertes dérivées des données réelles du dossier (aucune valeur codée en dur). */
+/** Alertes dérivées des données réelles du dossier. L'échéance de campagne n'y figure pas :
+ * elle est portée une seule fois, par la bande de campagne. */
 function buildAlerts(data: StudentDashboard): Alert[] {
   const alerts: Alert[] = []
-  const { campaign, request, eligibility } = data.renewal
-
-  if (campaign && request && request.status !== 'WITHDRAWN') {
-    alerts.push({
-      key: 'renewal-request',
-      tone: request.status === 'INCOMPLETE' ? 'warning' : request.status === 'APPROVED' ? 'success' : 'info',
-      title: `${campaign.title} : ${request.statusLabel.toLowerCase()}`,
-      text: `Demande ${request.reference}.`,
-      link: { to: '/portal/renouvellement', label: 'Suivre ma demande' },
-    })
-  } else if (campaign?.phase === 'OPEN') {
-    const blocked = eligibility !== null && !eligibility.eligible
-
-    alerts.push({
-      key: 'renewal-open',
-      tone: blocked ? 'warning' : 'info',
-      title: `${campaign.title} ouvert`,
-      text: blocked
-        ? (eligibility.blockers[0]?.message ?? 'Renouvellement impossible pour le moment.')
-        : `Déposez votre demande au plus tard le ${formatLongDate(lastDayOf(campaign.closesAt))}.`,
-      link: { to: '/portal/renouvellement', label: 'Commencer ma demande' },
-    })
-  } else if (campaign?.phase === 'UPCOMING') {
-    alerts.push({
-      key: 'renewal-upcoming',
-      tone: 'info',
-      title: `${campaign.title} à venir`,
-      text: `Ouverture le ${formatLongDate(campaign.opensAt)}.`,
-    })
-  }
 
   if (data.documents.toProvide.length > 0) {
     alerts.push({
@@ -81,6 +50,33 @@ function buildAlerts(data: StudentDashboard): Alert[] {
   return alerts
 }
 
+/** Ce que le boursier peut faire maintenant sur sa campagne. */
+function RenewalAction({ renewal }: { renewal: StudentDashboard['renewal'] }) {
+  const { campaign, request, eligibility } = renewal
+  const blocker = eligibility && !eligibility.eligible ? eligibility.blockers[0]?.message : null
+
+  if (request && request.status !== 'WITHDRAWN') {
+    return (
+      <p>
+        Demande {request.reference} – {request.statusLabel.toLowerCase()}.{' '}
+        <Link to="/portal/renouvellement">Suivre ma demande</Link>
+      </p>
+    )
+  }
+
+  if (campaign?.phase !== 'OPEN') {
+    return null
+  }
+
+  return blocker ? (
+    <p className="campaign-band-note">{blocker}</p>
+  ) : (
+    <p>
+      <Link to="/portal/renouvellement">Commencer ma demande</Link>
+    </p>
+  )
+}
+
 export function DashboardPage() {
   useDocumentTitle('Tableau de bord')
 
@@ -101,7 +97,13 @@ export function DashboardPage() {
       <InlineState loading={loading} error={error} />
 
       {data && (
-        <>
+        <div className="portal-stack">
+          {data.renewal.campaign && (
+            <CampaignBand campaign={data.renewal.campaign}>
+              <RenewalAction renewal={data.renewal} />
+            </CampaignBand>
+          )}
+
           <section className="student-card" aria-labelledby="student-card-title">
             <h2 id="student-card-title" className="student-name">
               {data.student.lastName.toUpperCase()} {data.student.firstName}
@@ -145,7 +147,7 @@ export function DashboardPage() {
           )}
 
           <section className="stat-grid" aria-label="Chiffres clés">
-            <article className="card stat-card">
+            <article className="stat-card">
               <h2 className="stat-label">Allocation mensuelle</h2>
               <p className="stat-value">
                 {formatMoney(data.scholarship.monthlyAllocation, data.scholarship.currency)}
@@ -154,7 +156,7 @@ export function DashboardPage() {
                 <p className="stat-sub">{formatMoney(data.scholarship.monthlyAllocationCfa, 'XOF')}</p>
               )}
             </article>
-            <article className="card stat-card">
+            <article className="stat-card">
               <h2 className="stat-label">Dernier versement</h2>
               <p className="stat-value">
                 {data.payments.last ? formatMoney(data.payments.last.amount, data.payments.last.currency) : '—'}
@@ -165,7 +167,7 @@ export function DashboardPage() {
                   : 'Aucun versement'}
               </p>
             </article>
-            <article className="card stat-card">
+            <article className="stat-card">
               <h2 className="stat-label">Prochain versement</h2>
               <p className="stat-value">
                 {data.payments.nextEstimatedAt ? formatMonthYear(data.payments.nextEstimatedAt) : '—'}
@@ -174,7 +176,7 @@ export function DashboardPage() {
                 {data.payments.nextEstimatedAt ? 'Estimation selon le rythme mensuel' : 'Aucun versement prévu'}
               </p>
             </article>
-            <article className="card stat-card">
+            <article className="stat-card">
               <h2 className="stat-label">Total versé {data.student.academicYear ?? ''}</h2>
               <p className="stat-value">{formatMoney(data.payments.currentYearTotal, data.payments.currency)}</p>
               <p className="stat-sub">
@@ -184,7 +186,7 @@ export function DashboardPage() {
           </section>
 
           {data.scholarship.progressPercent !== null && (
-            <section className="card" aria-labelledby="progress-title" style={{ marginBottom: '16px' }}>
+            <section className="card" aria-labelledby="progress-title">
               <h2 id="progress-title" className="card-title">Durée de la bourse</h2>
               <div className="progress-labels">
                 <span>Début : {formatDate(data.scholarship.startDate)}</span>
@@ -227,7 +229,7 @@ export function DashboardPage() {
             )}
             <Link to="/portal/notifications">Toutes les notifications</Link>
           </section>
-        </>
+        </div>
       )}
     </div>
   )

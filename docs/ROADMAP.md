@@ -156,3 +156,22 @@ Relecture indépendante du dépôt après L15. Résultats :
   pièces ni sur la page RIB ; pas de contrôle d'accessibilité automatisé (axe) ; `src/legacy`
   (15 lignes) n'est importé nulle part — jalon volontaire pour l'intégration ASP.
 
+## Passage design (2026-09-27)
+
+Identité « signalétique d'État », documentée dans [charte-visuelle.md](charte-visuelle.md) :
+couleur porteuse d'état uniquement, Archivo variable dont l'axe de chasse porte la hiérarchie,
+surfaces plates et filets. Périmètre : système complet (`index.css` réécrit, 1572 → ~1000 lignes,
+31 ko contre 40) plus trois écrans repris — accueil public, tableau de bord boursier, espace de demande.
+
+- `components/CampaignBand.tsx` : l'échéance devient un objet, affiché une seule fois par écran
+  (accueil, tableau de bord, espace de demande) ; graphique `aria-hidden`, période et temps restant en texte.
+- Supprimés : bandeau tricolore décoratif de chaque page (signature conservée en pied d'accueil),
+  carte d'accès du hero, alertes de tableau de bord qui répétaient la date, capitales d'étiquettes,
+  ombres portées sur les cartes.
+- Corrigé au passage : l'anneau de focus vert était invisible sur les fonds sombres (2:1) — il passe au
+  blanc ; le compte de notifications repasse en neutre pour que l'ambre reste réservé à l'échéance.
+- Vérifié : contrastes calculés (tout ≥ 4,5:1, l'ambre clair en aplat seulement), axe `wdth` bien servi
+  par Google Fonts, 47 tests front, lint, typecheck et build verts.
+- Non vérifié : aucun navigateur sur ce poste, donc aucune capture d'écran — le rendu visuel reste à
+  regarder (`pnpm dev`), notamment la bande de campagne sur mobile.
+

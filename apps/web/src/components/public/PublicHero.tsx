@@ -1,38 +1,29 @@
 import { Link } from 'react-router'
 
+/**
+ * Le hero dit qui sert qui, puis envoie vers l'action. Le calendrier des campagnes
+ * le suit immédiatement (`PublicCampaigns`) : l'échéance est la première information utile.
+ */
 export function PublicHero() {
   return (
-    <>
-      <section className="public-hero" id="accueil" aria-labelledby="hero-title">
-        <div className="public-container public-hero-grid">
-          <div className="public-hero-copy">
-            <p className="public-eyebrow">Portail institutionnel SGEE</p>
-            <h1 id="hero-title">Service de Gestion des Étudiants sénégalais à l’Étranger</h1>
-            <p>
-              Un point d’accès officiel pour suivre votre dossier de bourse, renouveler
-              votre bourse chaque année, consulter vos paiements, déposer vos justificatifs
-              et actualiser vos informations bancaires.
-            </p>
-            <div className="public-hero-actions">
-              <Link className="public-primary-btn" to="/portal">
-                Portail des boursiers
-              </Link>
-              <a className="public-secondary-btn" href="#demarches">
-                Voir les démarches
-              </a>
-            </div>
-          </div>
-          <aside className="public-access-card" aria-labelledby="access-title">
-            <p className="public-card-label">Accès sécurisé</p>
-            <h2 id="access-title">Votre espace boursier</h2>
-            <p>Connectez-vous avec vos identifiants SGEE pour consulter les informations de votre dossier.</p>
-            <Link className="public-card-btn" to="/login">
-              Accéder à mon compte
+    <section className="public-hero" id="accueil" aria-labelledby="hero-title">
+      <div className="public-container public-hero-grid">
+        <div className="public-hero-copy">
+          <h1 id="hero-title">Bourses des étudiants sénégalais à l’étranger</h1>
+          <p>
+            Renouvelez votre bourse chaque année, déposez vos justificatifs, tenez vos coordonnées
+            bancaires à jour et suivez vos versements, depuis votre pays d’études.
+          </p>
+          <div className="public-hero-actions">
+            <Link className="public-primary-btn" to="/login">
+              Accéder à mon espace
             </Link>
-            <span>Authentification par session sécurisée.</span>
-          </aside>
+            <Link className="public-secondary-btn" to="/candidature">
+              Candidater à une bourse
+            </Link>
+          </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   )
 }

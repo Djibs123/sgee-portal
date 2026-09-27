@@ -95,7 +95,6 @@ export function PortalLayout() {
   return (
     <>
       <SkipLink />
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <Header student={profile} menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
       <div className="layout">
         <Sidebar

@@ -7,13 +7,12 @@ import {
   getRequest,
   listRequests,
   withdrawRequest,
-  type CampaignView,
   type RequestSpace,
   type RequestView,
 } from '../../lib/api'
-import { campaignPeriod } from '../../lib/campaigns'
 import { toneOfStatus } from '../../lib/status'
 import { useApiResource } from '../../lib/useApiResource'
+import { CampaignBand } from '../CampaignBand'
 import { InlineState } from '../InlineState'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EmptyState } from '../ui/EmptyState'
@@ -21,37 +20,6 @@ import { StatusMessage } from '../ui/StatusMessage'
 import { StatusPill } from '../ui/StatusPill'
 import { RequestOverview } from './RequestOverview'
 import { RequestWizard } from './RequestWizard'
-
-function CampaignCard({ campaign }: { campaign: CampaignView }) {
-  return (
-    <section className="card" aria-labelledby="campaign-title">
-      <div className="toolbar">
-        <h2 id="campaign-title" className="wizard-title">
-          {campaign.title}
-        </h2>
-        <StatusPill tone={campaign.phase === 'OPEN' ? 'success' : 'neutral'}>{campaign.phaseLabel}</StatusPill>
-      </div>
-      <p>
-        Dépôt {campaignPeriod(campaign)} – année {campaign.academicYear.label}.
-      </p>
-      {campaign.instructions && <p>{campaign.instructions}</p>}
-      {campaign.requirements.length > 0 && (
-        <details className="campaign-requirements">
-          <summary>Pièces demandées</summary>
-          <ul>
-            {campaign.requirements.map((requirement) => (
-              <li key={`${requirement.documentTypeCode}-${requirement.cycles.join('-')}`}>
-                {requirement.label}
-                {requirement.isRequired ? '' : ' (facultatif)'}
-                {requirement.cycles.length > 0 ? ` – ${requirement.cycles.join(', ')}` : ''}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
-  )
-}
 
 type RequestWorkspaceProps = {
   space: RequestSpace
@@ -176,7 +144,23 @@ export function RequestWorkspace({ space, startLabel }: RequestWorkspaceProps) {
       <StatusMessage tone={flash?.tone ?? 'success'} message={flash?.text} />
 
       {campaign ? (
-        <CampaignCard campaign={campaign} />
+        <CampaignBand campaign={campaign}>
+          {campaign.instructions && <p className="campaign-band-note">{campaign.instructions}</p>}
+          {campaign.requirements.length > 0 && (
+            <details className="campaign-requirements">
+              <summary>Pièces demandées</summary>
+              <ul>
+                {campaign.requirements.map((requirement) => (
+                  <li key={`${requirement.documentTypeCode}-${requirement.cycles.join('-')}`}>
+                    {requirement.label}
+                    {requirement.isRequired ? '' : ' (facultatif)'}
+                    {requirement.cycles.length > 0 ? ` – ${requirement.cycles.join(', ')}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </CampaignBand>
       ) : (
         <EmptyState title="Aucune campagne en cours" description="Vous serez notifié à l’ouverture de la prochaine campagne." />
       )}

@@ -32,7 +32,6 @@ export function ApplicantLayout() {
   return (
     <>
       <SkipLink />
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <header className="applicant-header">
         <div className="applicant-header-inner">
           <Link to="/" className="applicant-brand">

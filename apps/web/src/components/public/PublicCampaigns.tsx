@@ -1,14 +1,14 @@
 import { Link } from 'react-router'
 import { listPublicCampaigns, type CampaignView } from '../../lib/api'
-import { campaignPeriod } from '../../lib/campaigns'
 import { useApiResource } from '../../lib/useApiResource'
+import { CampaignBand } from '../CampaignBand'
 
 const ACTIONS: Record<CampaignView['type'], { to: string; label: string }> = {
   RENEWAL: { to: '/login', label: 'Renouveler ma bourse' },
   NEW_APPLICATION: { to: '/candidature', label: 'Déposer une candidature' },
 }
 
-/** Calendrier des campagnes de l'année en cours, publié par l'API (plus de texte figé). */
+/** Calendrier des campagnes de l'année, publié par l'API : la date passe avant le discours. */
 export function PublicCampaigns() {
   const { data, loading, error } = useApiResource(listPublicCampaigns)
   const campaigns = data?.items ?? []
@@ -22,23 +22,23 @@ export function PublicCampaigns() {
           {(error || (!loading && campaigns.length === 0)) && (
             <p>Les campagnes ouvrent selon le calendrier défini par l’administration.</p>
           )}
+          <p>
+            <Link to="/candidature">Espace candidat</Link>
+          </p>
         </div>
         {campaigns.length > 0 && (
-          <ul className="public-campaign-list">
+          <ul className="public-campaign-list" aria-label="Calendrier des campagnes">
             {campaigns.map((campaign) => (
               <li key={campaign.id}>
-                <strong>{campaign.title}</strong>
-                <p>
-                  {campaign.phaseLabel} – {campaignPeriod(campaign)}
-                </p>
-                {campaign.phase === 'OPEN' && (
-                  <Link to={ACTIONS[campaign.type].to}>{ACTIONS[campaign.type].label}</Link>
-                )}
+                <CampaignBand campaign={campaign} headingLevel="h3">
+                  {campaign.phase === 'OPEN' && (
+                    <Link to={ACTIONS[campaign.type].to}>{ACTIONS[campaign.type].label}</Link>
+                  )}
+                </CampaignBand>
               </li>
             ))}
           </ul>
         )}
-        <Link to="/candidature">Espace candidat</Link>
       </div>
     </section>
   )

@@ -21,7 +21,6 @@ export function AppError() {
 
   return (
     <>
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <main className="login-shell" id="main-content">
         <section className="card not-found" aria-labelledby="app-error-title">
           <h1 id="app-error-title">{stale ? 'Une nouvelle version est disponible' : 'Une erreur est survenue'}</h1>

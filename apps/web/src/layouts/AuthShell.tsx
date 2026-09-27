@@ -12,7 +12,6 @@ export function AuthShell({ title, intro, children }: AuthShellProps) {
 
   return (
     <>
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <main className="login-shell" id="main-content">
         <section className="login-panel" aria-labelledby={titleId}>
           <div className="login-brand">

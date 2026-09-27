@@ -51,7 +51,6 @@ export function AdminLoginPage() {
 
   return (
     <>
-      <div className="flag-strip" aria-hidden="true"><span /><span /><span /></div>
       <main className="login-shell" id="main-content">
         <section className="login-panel" aria-labelledby="admin-login-title">
           <div className="login-brand">
